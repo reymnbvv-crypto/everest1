@@ -404,8 +404,8 @@
         { id: 'bag_basic', category: 'bag', name: '普通睡袋', price: 1000, weight: 1.0, type: 'gear', desc: '輕便。營地睡覺+50體力，體溫-20。' },
         { id: 'crampons', name: '專業冰爪', price: 1500, weight: 1.0, type: 'gear', desc: '防滑墜，攀登體力消耗減少20%。' },
         { id: 'shovel', name: '雪鏟', price: 1000, weight: 2.0, type: 'tool', desc: '重型工具。挖雪洞休息20時間。體力+30，減少體溫流失。' },
-        { id: 'headlamp', name: '高流明頭燈', price: 500, weight: 0.3, type: 'gear', desc: '驅散黑暗恐懼。夜晚行動時，理智消耗減半。' },
-        { id: 'poles', name: '碳纖維登山杖', price: 800, weight: 0.5, type: 'gear', desc: '節省腿力。在 C3 之前，攀登體力消耗減少 2 點。' },
+        { id: 'headlamp', name: '高流明頭燈', price: 500, weight: 0.3, type: 'gear', desc: '驅散黑暗恐懼。夜晚或暴雪行動時，理智消耗減半。' },
+        { id: 'poles', name: '碳纖維登山杖', price: 800, weight: 0.5, type: 'gear', desc: 'C2前節省30%體力，下撤全程固定-2消耗。' },
         { id: 'stove', name: '便攜爐具', price: 500, weight: 0.8, type: 'gear', desc: '在營地配合燃料可回滿體溫。' },
         { id: 'oxygen', name: '氧氣瓶', price: 1000, weight: 6.0, type: 'use', desc: '6.0kg重物。攻頂必需品。', effect: {stam:40, sani:20} },
         { id: 'food', name: '高熱量口糧', price: 100, weight: 0.5, type: 'use', desc: '回45飽食度', effect: {hung:45} },
@@ -789,6 +789,10 @@
 
         if (player.blizzard.active) {
             bzStamMult = 2; bzTempMult = 3; bzSaniMult = 2;
+            if (player.gear.includes('headlamp')) {
+                bzStamMult *= 0.9; // 體力消耗減少 10% (你的要求)
+                bzSaniMult = 1.0;  // [建議] 同時消除暴風雪的理智懲罰 (原本是 x2)
+            }
             player.blizzard.timer--;
             if (player.blizzard.timer <= 0) {
                 player.blizzard.active = false;
@@ -816,10 +820,21 @@
         
         // Difficulty Multiplier
         const diffMult = DIFFICULTIES[currentDiff].mult;
-        if (player.gear.includes('poles') && player.progress < 60) {
-        stamCost = Math.max(1, stamCost - 2);
+// --- 登山杖邏輯 (Zone 1/2 + 下撤優化) ---
+    if (player.gear.includes('poles')) {
+        // 1. 下撤模式：全程生效，保護膝蓋
+        // 固定減免 2 點 (這在體力耗盡時非常巨大)
+        if (player.isDescending) {
+            stamCost = Math.max(1, stamCost - 2);
         }
-
+        // 2. 上升模式：僅在 C2 (進度40) 之前生效
+        // 百分比減免，適合長距離平緩地形
+        else if (player.progress < 40) {
+            stamCost *= 0.7; // 體力消耗 -30%
+        }
+        // 3. Zone 3 (進度40) 以上：
+        // 進入洛子壁垂直冰面，登山杖失去作用 (無效果，僅作為負重)
+    }
         player.stats.stam -= (stamCost * hypoxiaMult * bzStamMult * diffMult);
         player.stats.temp -= (tempCost * diffMult); 
         player.stats.hung -= (3 * diffMult); 
