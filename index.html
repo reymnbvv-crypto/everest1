@@ -1,0 +1,1780 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>8848: The Summit (v1.2)</title>
+    <meta name="description" content="《8848: The Summit》是一款硬核的聖母峰生存模擬文字遊戲。管理你的體溫、氧氣與理智，挑戰無氧登頂世界最高峰。HTML5 網頁版，免下載直接玩。">
+    <meta name="keywords" content="聖母峰遊戲, 文字遊戲, 生存模擬, 爬山遊戲, 網頁遊戲, HTML5遊戲, 聖母峰, 珠穆朗瑪峰, 8848">
+    <meta name="author" content="你的名字或暱稱">
+
+    <meta property="og:title" content="8848: 絕命海拔 - 聖母峰生存模擬器">
+    <meta property="og:description" content="登頂只是旅程的一半，活著回來才是挑戰的全部。你能征服死亡地帶嗎？">
+    <meta property="og:image" content="https://images.unsplash.com/photo-1585409677983-0f6c41ca9c3b?q=80&w=1920">
+    <meta name="google-site-verification" content="Z0euiR_dQoP-QVUx9y0J47sjk6CAEytYUdRQbcLHUdk" />
+    <style>
+        :root {
+            --bg-overlay: rgba(11, 15, 25, 0.85);
+            --panel-bg: rgba(22, 27, 40, 0.9);
+            --text-main: #c4d7ed;
+            --text-dim: #8a9eb5;
+            --accent-blue: #4a90e2;
+            --accent-danger: #d9534f;
+            --accent-sanity: #b846d8;
+            --accent-gold: #e6b800;
+            --border: 1px solid #2c3e50;
+            --font-mono: 'Courier New', Courier, monospace;
+        }
+
+        body {
+            touch-action: manipulation;
+            background-color: #000;
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            color: var(--text-main);
+            font-family: var(--font-mono);
+            margin: 0;
+            padding: 0;
+            /* 關鍵修改開始 */
+            width: 100vw;
+            height: 100vh;       /* 舊瀏覽器備用 */
+            height: 100dvh;      /* 新版手機瀏覽器專用：自動扣除工具列高度 */
+            overflow: hidden;    /* 禁止整個頁面滾動 */
+            /* 關鍵修改結束 */
+            display: flex;
+            justify-content: center;
+            user-select: none;
+            transition: background-image 1s ease-in-out;
+        }
+
+        body::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg-overlay);
+            z-index: -1;
+            transition: background 0.5s;
+        }
+
+        body.blizzard-active::before {
+            background: rgba(200, 220, 255, 0.2);
+        }
+
+        #app {
+            width: 100%;
+            max-width: 800px;
+            /* 關鍵修改開始 */
+            height: 100vh;      /* 舊瀏覽器備用 */
+            height: 100dvh;     /* 自動調整高度，避開工具列 */
+            /* 針對 iPhone X 以上的底部橫條 (Home Indicator) 增加安全距離 */
+            padding-bottom: env(safe-area-inset-bottom); 
+            box-sizing: border-box; /* 確保 padding 不會把版面撐破 */
+            /* 關鍵修改結束 */
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            background: transparent;
+            transition: filter 0.5s;
+            overflow: hidden;
+        }
+
+        /* --- SCREENS --- */
+        .screen { display: none; flex-direction: column; height: 100%; }
+        .active-screen { display: flex; }
+
+        /* --- TITLE & DIFFICULTY SCREENS --- */
+        #title-screen, #difficulty-screen {
+            padding: 30px;
+            overflow-y: auto;
+            align-items: center;
+            text-align: center;
+        }
+        .intro-box {
+            background: var(--panel-bg);
+            border: 1px solid var(--accent-blue);
+            padding: 25px;
+            border-radius: 8px;
+            text-align: left;
+            margin-bottom: 20px;
+            max-width: 650px;
+            width: 90%;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        .intro-box h1 { color: #fff; text-align: center; margin-bottom: 5px; text-shadow: 0 0 10px var(--accent-blue); }
+        .intro-box h2 { font-size: 1em; color: var(--accent-blue); text-align: center; margin-top: 0; margin-bottom: 20px; letter-spacing: 2px; }
+        .intro-box h3 { color: var(--accent-gold); border-bottom: 1px solid #444; padding-bottom: 5px; margin-top: 20px; }
+        .intro-box ul { padding-left: 20px; line-height: 1.6; color: #ddd; }
+        .intro-box li { margin-bottom: 8px; }
+        
+        .btn-enter-shop {
+            background: linear-gradient(180deg, #4a90e2 0%, #2c5f96 100%);
+            color: #fff; border: 1px solid #6ab0ff;
+            padding: 15px 40px; font-size: 1.5em; font-weight: bold; cursor: pointer;
+            border-radius: 5px; box-shadow: 0 0 15px var(--accent-blue);
+            animation: pulse-btn 2s infinite;
+        }
+        @keyframes pulse-btn { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+
+        /* Difficulty Buttons */
+        .diff-btn {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            background: rgba(0,0,0,0.5);
+            border: 1px solid #444;
+            color: #ccc;
+            font-size: 1.1em;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.3s;
+        }
+        .diff-btn:hover { background: rgba(255,255,255,0.1); border-color: #fff; color: #fff; }
+        .diff-easy { border-left: 5px solid #4caf50; }
+        .diff-normal { border-left: 5px solid #4a90e2; }
+        .diff-hard { border-left: 5px solid #d9534f; }
+        .diff-meta { display: block; font-size: 0.8em; color: #888; margin-top: 5px; }
+
+        /* --- SHOP --- */
+        #shop-screen { padding: 20px; overflow-y: auto; z-index: 10; }
+        .shop-header { position: sticky; top: 0; background: rgba(11, 15, 25, 0.95); z-index: 5; border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 15px; }
+        .item-card { background: var(--panel-bg); border: var(--border); padding: 12px; margin-bottom: 10px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; }
+        .item-info { flex-grow: 1; margin-right: 10px; }
+        .item-actions { text-align: right; min-width: 110px; display: flex; align-items: center; justify-content: flex-end; gap: 5px;}
+        .btn-buy { background: #2c3e50; color: #fff; border: 1px solid #4a6fa5; padding: 8px 12px; cursor: pointer; border-radius: 3px; }
+        .btn-buy.owned { background: #1b4f25; border-color: #2e8b57; opacity: 0.7; cursor: default;}
+        .btn-start { width:100%; padding:15px; margin-top:10px; background:var(--accent-blue); color:white; border:none; font-weight:bold; font-size:1.1em; cursor:pointer;}
+        .btn-qty { background: #333; color: #fff; border: 1px solid #555; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; font-weight: bold; font-size: 1.1em; display: flex; justify-content: center; align-items: center; }
+        .btn-qty:active { background: #555; }
+        .qty-display { font-weight: bold; color: var(--accent-gold); min-width: 25px; text-align: center; }
+
+        /* --- HUD --- */
+        #game-screen { padding-bottom: 0; }
+        #hud { background: rgba(8, 10, 16, 0.95); padding: 15px; border-bottom: 1px solid #333; font-size: 0.9em; z-index: 3; position: relative; }
+        .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 10px;}
+        .progress-track { height: 6px; background: #333; margin-top: 4px; border-radius: 3px; overflow: hidden; }
+        .progress-fill { height: 100%; transition: width 0.3s; }
+        .fill-stamina { background: var(--accent-gold); }
+        .fill-temp { background: var(--accent-blue); }
+        .fill-hunger { background: #4caf50; }
+        .fill-sanity { background: var(--accent-sanity); }
+        .warning-stat { animation: blink 1s infinite; border: 1px solid var(--accent-danger); }
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        .env-bar { display: flex; justify-content: space-between; align-items: center; background: #1a2634; padding: 8px 15px; border-radius: 4px; color: #fff; margin-bottom: 10px; }
+
+        /* --- VIEW --- */
+        #main-view { flex-grow: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background: rgba(0,0,0,0.3); z-index: 3; position: relative; }
+        .night-mode { background: rgba(0,0,0,0.7) !important; }
+        .log-entry { font-size: 1em; line-height: 1.6; border-left: 3px solid #333; padding-left: 12px; animation: fadeIn 0.3s; color: #bbb; text-shadow: 1px 1px 2px #000; }
+        .log-entry.event { border-color: var(--accent-gold); color: #fff; background: rgba(230, 184, 0, 0.1); padding: 8px; }
+        .log-entry.critical { border-color: var(--accent-danger); color: #ff9999; border-width: 4px; font-weight: bold; background: rgba(217, 83, 79, 0.2); padding: 8px; }
+        .log-entry.malignant { border-color: var(--accent-sanity); color: #e0aaff; border-width: 3px; border-style: dashed; background: rgba(184, 70, 216, 0.1); }
+        .log-entry.blizzard { border-color: #fff; color: #fff; background: rgba(255, 255, 255, 0.15); text-shadow: 0 0 5px #fff; }
+        .log-entry.descend { border-color: #4caf50; color: #a5d6a7; }
+        .log-entry.flavor { border-color: #4a90e2; color: #8cb4e0; font-style: italic; font-size: 0.9em; opacity: 0.9; }
+        .log-entry.sanity { border-color: var(--accent-sanity); color: #d8a0df; font-family: 'Times New Roman', serif; letter-spacing: 1px; }
+
+        /* --- CONTROLS --- */
+        #controls { background: rgba(17, 17, 17, 0.95); border-top: 1px solid #333; padding: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; z-index: 3; position: relative; }
+        button.action-btn { padding: 15px 5px; background: #222; color: #ddd; border: 1px solid #444; font-family: var(--font-mono); cursor: pointer; font-size: 1em; font-weight: bold; height: 100%; min-height: 50px; }
+        button.climb-btn { background: #1a2634; border-color: var(--accent-blue); color: #fff; }
+        button.toggle-btn { background: #16222e; font-size: 0.9em; border-style: dashed; } 
+        
+        /* --- MODAL --- */
+        #modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); display: none; justify-content: center; align-items: center; z-index: 100; }
+        .modal-content { background: #161b28; border: 1px solid #444; padding: 25px; width: 95%; max-width: 700px; max-height: 90vh; overflow-y: auto; border-radius: 4px; box-shadow: 0 0 30px #000; }
+        .modal-title { color: var(--accent-blue); margin-top: 0; border-bottom: 1px solid #333; padding-bottom: 10px; font-size: 1.4em; }
+        .choice-btn { width: 100%; padding: 15px; margin-top: 10px; background: #222; border: 1px solid #555; color: #ccc; text-align: center; cursor: pointer; font-size: 1.1em; }
+        .choice-btn:hover { background: #333; border-color: #888; }
+        .inv-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #333; font-size: 1em; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        
+        #hypoxia-alert { display:none; color: var(--accent-danger); font-weight: bold; animation: blink 0.5s infinite alternate; }
+        #death-risk { display:none; color: var(--accent-danger); font-weight: bold; margin-right: 15px; font-size: 1.1em; }
+        #blizzard-alert { display:none; color: #aaddff; font-weight: bold; text-shadow: 0 0 10px #fff; animation: blink 0.5s infinite; margin-right: 10px; }
+        
+        .camp-desc-box { background: rgba(255, 255, 255, 0.05); padding: 15px; border-left: 4px solid var(--accent-gold); margin-bottom: 20px; font-style: italic; color: #ddd; font-size: 1em; line-height: 1.6; }
+        .camp-option { display: flex; align-items: center; justify-content: space-between; padding: 10px; border: 1px solid #333; margin-bottom: 5px; background: #111; cursor: pointer; }
+        .camp-option:hover { background: #222; }
+        .camp-option input { transform: scale(1.5); }
+
+        /* End Game Summary Styles */
+        .summary-box { background: #111; padding: 20px; border: 1px solid #444; margin-bottom: 20px; font-size: 1em; }
+        .summary-stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 10px; }
+        .summary-log-container { max-height: 300px; overflow-y: auto; background: #000; border: 1px solid #333; padding: 15px; font-size: 0.9em; margin-top: 10px; color: #999; font-family: monospace; line-height: 1.4; }
+        .result-title { font-size: 2em; font-weight: bold; margin-bottom: 15px; text-align: center; border-bottom: 2px solid #333; padding-bottom: 10px; }
+        .text-win { color: var(--accent-gold); text-shadow: 0 0 10px rgba(230, 184, 0, 0.3); }
+        .text-loss { color: var(--accent-danger); text-shadow: 0 0 10px rgba(217, 83, 79, 0.3); }
+        .text-retreat { color: var(--accent-blue); }
+        .text-green { color: #4caf50; font-weight: bold; }
+        .text-red { color: #d9534f; font-weight: bold; }
+        .stat-label { color: #aaa; }
+        .stat-val { font-weight: bold; color: #fff; font-size: 1.1em; }
+        .stat-min { font-size: 0.9em; margin-left: 8px; color: #888; }
+        
+        /* Blizzard Overlay Visuals */
+        .blizzard-filter { filter: sepia(0.5) hue-rotate(180deg) saturate(1.5) brightness(0.9); }
+        #blizzard-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: url('data:image/svg+xml;utf8,%3Csvg version="1.1" xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Ccircle cx="50" cy="50" r="1" fill="rgba(255,255,255,0.4)"/%3E%3C/svg%3E');
+            animation: snow 0.3s linear infinite;
+            pointer-events: none;
+            display: none;
+            z-index: 2;
+            opacity: 0.6;
+        }
+        .blizzard-active #blizzard-overlay { display: block; }
+        @keyframes snow { 0% { background-position: 0 0; } 100% { background-position: 20px 50px; } }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div id="blizzard-overlay"></div>
+
+    <div id="title-screen" class="screen active-screen">
+        <div class="intro-box">
+            <h1>🏔️ 8848: The Summit</h1>
+            <h2>絕命海拔 (終極完整版)</h2>
+            <p>「登頂只是旅程的一半，活著回來才是挑戰的全部。」</p>
+            <p>歡迎來到地球上最殘酷的生存模擬器。這不僅僅是一個點擊遊戲，這是一場關於資源管理、風險評估與意志力的極限考驗。</p>
+            
+            <h3>🌟 版本核心特色</h3>
+            <ul>
+                <li><strong>硬核生存機制</strong>：同時監控體力、體溫、飢餓與理智。</li>
+                <li><strong>沈浸式地圖</strong>：從「爆米花田」到「希拉里台階」，16個真實地標。</li>
+                <li><strong>動態天氣系統</strong>：暴風雪隨時降臨，視線受阻，體溫狂掉。</li>
+                <li><strong>深度裝備策略</strong>：雪鏟挖洞保命、能量飲料透支理智、35kg 負重極限。</li>
+                <li><strong>傳奇挑戰：無氧登頂</strong>：在死亡地帶拒絕氧氣瓶，獲得「無氧大師」最高榮譽。</li>
+            </ul>
+            <div style="text-align: center; margin-top: 30px;">
+                <button class="btn-enter-shop" onclick="enterDifficultySelection()">開始挑戰</button>
+            </div>
+        </div>
+    </div>
+
+<div id="difficulty-screen" class="screen">
+        <div class="intro-box" style="text-align:center;">
+            <h2>定義你的攀登風格</h2>
+            <p style="color:#aaa; font-size:0.9em; margin-bottom:20px;">
+                「山不問你的出身，但裝備與決心將決定你的死期。」
+            </p>
+            
+            <button class="diff-btn" style="border-left: 5px solid #4caf50;" onclick="selectDifficulty('easy')">
+                <strong>商業隊客戶 (The Client)</strong>
+                <div style="font-size:0.85em;; margin: 4px 0 8px 0; font-style:italic;">
+                    「我付了頂級嚮導費，只為了在頂峰插旗。雪巴人會為我鋪好路的。」
+                </div>
+                <span class="diff-meta">資金: $16,000 | 消耗: 低 | 天氣: 晴朗窗口</span>
+            </button>
+            
+            <button class="diff-btn" style="border-left: 5px solid #e6b800;" onclick="selectDifficulty('normal')">
+                <strong>資深登山家 (The Alpinist)</strong>
+                <div style="font-size:0.85em;; margin: 4px 0 8px 0; font-style:italic;">
+                    「為了這一刻我訓練了三年。我敬畏這座山，也做好了面對暴風的準備。」
+                </div>
+                <span class="diff-meta">資金: $14,000 | 消耗: 標準 | 天氣: 變幻莫測</span>
+            </button>
+            
+            <button class="diff-btn" style="border-left: 5px solid #ff9800;" onclick="selectDifficulty('hard')">
+                <strong>雪山追獵者 (The Hunter)</strong>
+                <div style="font-size:0.85em;; margin: 4px 0 8px 0; font-style:italic;">
+                    「我不是來朝聖的，我是來狩獵紀錄的。在極限邊緣，效率就是生命。」
+                </div>
+                <span class="diff-meta">資金: $13,000 | 消耗: 高 | 天氣: 嚴酷</span>
+            </button>
+            
+            <button class="diff-btn" style="border-left: 5px solid #d9534f;" onclick="selectDifficulty('insane')">
+                <strong>亡命獨行者 (Soloist)</strong>
+                <div style="font-size:0.85em; color:#ff6b6b; margin: 4px 0 8px 0; font-style:italic;">
+                    「瘋子才選這條路。沒有隊友、沒有後援，只有我和死神在跳舞。」
+                </div>
+                <span class="diff-meta">資金: $12,000 | 消耗: 致命 | 天氣: 災難級</span>
+            </button>
+        </div>
+    </div>
+    <div id="shop-screen" class="screen">
+        <div class="shop-header">
+            <h2 style="margin:0; font-size: 1.8em;">登山裝備店</h2>
+            <div style="display:flex; justify-content:space-between; margin-top:10px; font-size:1em; color:#aaa; border-bottom:1px solid #333; padding-bottom:10px;">
+                <span>資金: <b id="shop-money" class="text-green">$13000</b></span>
+                <span>負重: <b id="shop-weight">0.0</b> / 35kg</span>
+            </div>
+            <button onclick="startGame()" class="btn-start">開始攀登</button>
+        </div>
+        <div id="shop-list"></div>
+    </div>
+
+    <div id="game-screen" class="screen">
+        <div id="hud">
+            <div class="env-bar">
+                <span id="txt-location" style="font-weight:bold; font-size:1.1em;">基地營 (0m)</span>
+                <span id="txt-time">☀ 白晝 (Step: 0/20)</span>
+            </div>
+            <div style="margin-top:15px;" class="status-grid">
+                <div>
+                    <div style="display:flex; justify-content:space-between;"><span>體力</span><span id="val-stam">100</span></div>
+                    <div class="progress-track"><div id="bar-stam" class="progress-fill fill-stamina" style="width:100%"></div></div>
+                </div>
+                <div>
+                    <div style="display:flex; justify-content:space-between;"><span>體溫</span><span id="val-temp">37.0°C</span></div>
+                    <div class="progress-track"><div id="bar-temp" class="progress-fill fill-temp" style="width:100%"></div></div>
+                </div>
+                <div>
+                    <div style="display:flex; justify-content:space-between;"><span>飢餓</span><span id="val-hung">100</span></div>
+                    <div class="progress-track"><div id="bar-hung" class="progress-fill fill-hunger" style="width:100%"></div></div>
+                </div>
+                <div>
+                    <div style="display:flex; justify-content:space-between;"><span>理智</span><span id="val-sani">100</span></div>
+                    <div class="progress-track"><div id="bar-sani" class="progress-fill fill-sanity" style="width:100%"></div></div>
+                </div>
+            </div>
+            <div style="text-align: right; color: #888; font-size: 0.9em; margin-top: 10px;">
+                <span id="blizzard-alert">❄ 暴風雪中 (消耗增加)</span>
+                <span id="death-risk">☠ 死亡率: 0%</span>
+                <span id="hypoxia-alert">⚠ 嚴重缺氧 (消耗增加)</span>
+                下一營地: <span id="val-dist-camp" style="color:#fff; font-weight:bold;">100.0%</span> <span id="descend-indicator" style="display:none; color:#4caf50;">(下山加速中)</span>
+            </div>
+        </div>
+
+        <div id="main-view"></div>
+
+        <div id="controls">
+            <button class="action-btn climb-btn" onclick="actionClimb()">行動 (Move)</button>
+            <button class="action-btn" onclick="actionRest()">原地休息</button>
+            <button class="action-btn" onclick="openInventory()">查看背包</button>
+            <button class="action-btn toggle-btn" onclick="toggleDirection()" id="btn-toggle">⬆ 攻頂中 (點擊切換)</button>
+        </div>
+    </div>
+</div>
+
+<div id="modal-overlay">
+    <div class="modal-content">
+        <h3 id="modal-title" class="modal-title">標題</h3>
+        <div id="modal-body">內容</div>
+        <div id="modal-actions"></div>
+    </div>
+</div>
+
+<script>
+    /* --- CONFIG & ASSETS --- */
+    // Dynamic Background Images (Unsplash Source)
+    const BG_IMAGES = {
+        title: "url('https://images.unsplash.com/photo-1585409677983-0f6c41ca9c3b?q=80&w=1920&auto=format&fit=crop')", // Everest Distance
+        shop: "url('https://images.unsplash.com/photo-1533561098132-7507835849bf?q=80&w=1920&auto=format&fit=crop')", // Gear/Tent
+        zone1: "url('https://images.unsplash.com/photo-1585409677983-0f6c41ca9c3b?q=80&w=1920&auto=format&fit=crop')", // Everest Distance
+        zone2: "url('https://images.unsplash.com/photo-1585409677983-0f6c41ca9c3b?q=80&w=1920&auto=format&fit=crop')", // Everest Distance
+        zone3: "url('https://images.unsplash.com/photo-1585409677983-0f6c41ca9c3b?q=80&w=1920&auto=format&fit=crop')", // Everest Distance
+        zone4: "url('https://images.unsplash.com/photo-1585409677983-0f6c41ca9c3b?q=80&w=1920&auto=format&fit=crop')", // Everest Distance
+        zone5: "url('https://images.unsplash.com/photo-1585409677983-0f6c41ca9c3b?q=80&w=1920&auto=format&fit=crop')", // Everest Distance
+        blizzard: "url('https://images.unsplash.com/photo-1585409677983-0f6c41ca9c3b?q=80&w=1920&auto=format&fit=crop')", // Everest Distance
+    };
+
+/* --- DIFFICULTY SETTINGS --- */
+    const DIFFICULTIES = {
+        // Tier 1: 綠
+        easy: { 
+            money: 16000, mult: 0.8, bzMod: 0.5,
+            desc: "商業隊客戶",color: "#4caf50"
+        },
+        // Tier 2: 黃 (原本是藍色，這裡不動數值，只改介面顏色)
+        normal: { 
+            money: 14000, mult: 1.0, bzMod: 1.0,
+            desc: "資深登山家",color: "#e6b800"
+        },
+        // Tier 3: 橙 (繼承原本 v1.1 Hard 的數值)
+        hard: { 
+            money: 13000, mult: 1.2, bzMod: 1.5,
+            desc: "雪山追獵者",color: "#ff9800"
+        },
+        // Tier 4: 紅 (新數值)
+        insane: { 
+            money: 12000, mult: 1.4, bzMod: 2.0,
+            desc: "亡命獨行者",color: "#d9534f"
+        }
+    };
+    let currentDiff = 'normal'; // Default
+
+    /* --- DATA & CONFIG --- */
+    const ITEMS = [
+        { id: 'coat_pro', category: 'coat', name: '極地連體衣', price: 4000, weight: 2.0, type: 'gear', desc: '極寒領域必備。休息與睡覺時額外+15保暖。', warm: 5, campWarm: 15 },
+        { id: 'coat_std', category: 'coat', name: '標準羽絨服', price: 1500, weight: 2.5, type: 'gear', desc: '抵抗普通寒冷。休息與睡覺時額外+5保暖。', warm: 3, campWarm: 5 },
+        { id: 'bag_polar', category: 'bag', name: '極地睡袋', price: 3000, weight: 4.0, type: 'gear', desc: '重但保暖。營地睡覺+50體力，體溫+30。' },
+        { id: 'bag_basic', category: 'bag', name: '普通睡袋', price: 1000, weight: 1.0, type: 'gear', desc: '輕便。營地睡覺+50體力，體溫-20。' },
+        { id: 'crampons', name: '專業冰爪', price: 1500, weight: 1.0, type: 'gear', desc: '防滑墜，攀登體力消耗減少20%。' },
+        { id: 'shovel', name: '雪鏟', price: 1000, weight: 2.0, type: 'tool', desc: '重型工具。挖雪洞休息20時間。體力+30，減少體溫流失。' },
+        { id: 'headlamp', name: '高流明頭燈', price: 500, weight: 0.3, type: 'gear', desc: '驅散黑暗恐懼。夜晚行動時，理智消耗減半。' },
+        { id: 'poles', name: '碳纖維登山杖', price: 800, weight: 0.5, type: 'gear', desc: '節省腿力。在 C3 之前，攀登體力消耗減少 2 點。' },
+        { id: 'stove', name: '便攜爐具', price: 500, weight: 0.8, type: 'gear', desc: '在營地配合燃料可回滿體溫。' },
+        { id: 'oxygen', name: '氧氣瓶', price: 1000, weight: 6.0, type: 'use', desc: '6.0kg重物。攻頂必需品。', effect: {stam:40, sani:20} },
+        { id: 'food', name: '高熱量口糧', price: 100, weight: 0.5, type: 'use', desc: '回45飢餓值', effect: {hung:45} },
+        { id: 'fuel', name: '固體燃料', price: 100, weight: 0.4, type: 'use', desc: '回40體溫 (營地需要配合爐具)', effect: {temp:40} },
+        { id: 'dex', name: '腎上腺素', price: 800, weight: 0.1, type: 'use', desc: '燃燒生命(飢餓)換取爆發，理智+40', effect: {adrenaline:true} },
+        { id: 'energy_drink', name: '能量飲料', price: 150, weight: 0.5, type: 'use', desc: '回40體力，但副作用傷身(理智-30)。', effect: {hung: 10, stam: 40, sani: -30} },
+        { id: 'whisky', name: '威士忌烈酒', price: 150, weight: 0.4, type: 'use', desc: '暖身烈酒。能增加體溫以及理智值，但醉酒會減少體力。', effect: {temp:30, sani:30, stam:-15} },
+    ];
+
+    const CAMPS = [0, 20, 40, 60, 80, 100];
+    const CAMP_DESC = {
+        20: "【C1 冰川孤島 5,943m】<br>你位於昆布冰川頂端的一塊巨大浮冰上。",
+        40: "【C2 沈默山谷 6,400m】<br>位於巨大的山谷盆地中。白天如烤箱，夜晚如冰窖。",
+        60: "【C3 洛子壁鳥巢 7,162m】<br>這只是掛在垂直冰壁上的幾個帳篷。",
+        80: "【C4 死亡門戶 7,950m】<br>一片被狂風掃蕩的黑色岩石平原。氧氣含量僅為海平面的三分之一。",
+        100: "<span style='color:var(--accent-gold); font-weight:bold;'>【世界之巔 8,848m】<br>你的腳下是整個地球。但現在，最危險的旅程才剛剛開始。</span>"
+    };
+    
+    const DAY_STEPS = 20; 
+    const DAY_LENGTH = 40; 
+
+    /* --- EVENT DATABASE (FULL CONTENT) --- */
+    const EVENTS_DB = {
+        blizzard: [ 
+            { id: "bz_whiteout", title: "白化天 (Whiteout)", text: "天地融為一體，分不清上下左右。你失去了平衡感，感覺像漂浮在牛奶中。", opts:[{txt:"憑直覺走", act:()=>{if(Math.random()>0.5){ return "你運氣好，憑著直覺走對了方向。(無額外懲罰)"; } else { player.progress -= 2; player.stats.stam-=15; return "你走錯了方向，浪費了寶貴的體力並迷路了。(進度倒退 / 體力-15)"; }}},{txt:"原地蹲坐", act:()=>{player.stats.temp-=20; player.stats.sani+=5; return "你停下來等待能見度恢復。極度寒冷，但理智稍微平復。(體溫-20 / 理智+5)";}}]},
+            { id: "bz_undress", title: "失溫幻覺 (Paradoxical Undressing)", text: "在狂暴的風雪中，你的大腦體溫調節中樞失靈。你突然感覺燥熱無比，想要脫掉羽絨服。", opts:[{txt:"保持理智 (理智檢定)", act:()=>{if(player.stats.sani > 40) return "你咬破舌尖，用劇痛讓自己保持清醒。好險沒有脫衣服。"; else { player.stats.temp = player.stats.temp/2; return "你的理智已經崩潰。你拉開了拉鍊，冷風灌入，你的體溫瞬間流失。(體溫減半)"; }}},{txt:"吃一把雪", act:()=>{player.stats.temp-=10; player.stats.sani+=20; return "冰冷的雪刺激了食道，讓你瞬間清醒過來。(體溫-10 / 理智+20)";}}]},
+            { id: "bz_shadow", title: "風暴中的人影", text: "風雪中似乎有人在向你招手，示意你偏離路繩跟著他走捷徑。", opts:[{txt:"跟過去", act:()=>{player.stats.stam-=30; player.deathRisk+=20; return "你走過去發現那只是岩石。你掉進了冰裂縫邊緣，差點沒命。(體力-30 / 死亡率+20%)";}},{txt:"抓緊路繩", act:()=>{player.stats.stam-=10; player.stats.temp-=5; return "你死死抓住繩子，手指凍傷，但保住了性命。(體力-10 / 體溫-5)";}}]}
+        ],
+        malignant: [
+            { id: "mal_cabin", title: "溫暖的小木屋", text: "風雪停了。路繩左側有一間冒著炊煙的小木屋，透出暖光，你聞到了烤肉的香味。", opts: [{ txt: "走過去敲門", act: () => { player.stats.stam -= 40; player.stats.sani -= 60; return "你解開路繩走過去，一腳踩空掉進冰裂縫。哪裡有什麼木屋？(體力-40 / 理智-60)"; }}, { txt: "猛擊大腿清醒", act: () => { player.stats.stam -= 10; player.stats.sani += 5; return "劇痛讓你清醒。眼前只有致死的風雪。(體力-10 / 理智+5)"; }}] },
+            { id: "mal_burden", title: "背包裡的惡魔", text: "你覺得背後越來越重，回頭一瞥，發現趴在你背上的不是背包，而是一隻正在啃食你頸椎的惡鬼！", opts: [{ txt: "立刻甩掉它！", act: () => { const keys = Object.keys(player.inventory); if(keys.length > 0) { const k = keys[Math.floor(Math.random() * keys.length)]; if(player.inventory[k]>0) player.inventory[k]--; } player.stats.sani -= 40; return "你像瘋子一樣把背包甩在地上。清醒後發現你弄丟了物資。(失去物品 / 理智-40)"; }}, { txt: "無視它", act: () => { player.stats.sani -= 80; player.stats.stam -= 10; return "你背著沈重的「惡鬼」繼續前行。恐懼感正在吞噬你的靈魂。(理智-80 / 體力-10)"; }}] },
+            { id: "mal_rope", title: "消失的路繩", text: "你低頭扣鎖扣，發現手中的繩子化為灰燼飄散。你被困在了垂直的冰壁上，上天無路。", opts: [{ txt: "大聲呼救", act: () => { if(player.inventory['oxygen']>0) player.inventory['oxygen']--; else player.stats.stam-=30; player.stats.sani -= 50; return "你在稀薄空氣中浪費了氧氣嘶吼，無人回應。(氧氣-1或體力-30 / 理智-50)"; }}, { txt: "嘗試徒手攀登", act: () => { player.stats.stam -= 20; player.stats.sani -= 40; return "你抓向不存在的岩點，手指狠狠撞在冰面上。(體力-20 / 理智-40)"; }}] },
+            { id: "mal_third", title: "第三人 (The Third Man)", text: "你感覺一直有一個「看不見的隊友」跟在你身後，甚至幫你拉了一下繩子。", opts: [{ txt: "分給他食物", act: () => { if(player.inventory['food']>0) player.inventory['food']--; player.stats.sani -= 20; return "你把珍貴的口糧撒在了雪地上，試圖安撫幻覺。(失去口糧 / 理智-20)"; }}, { txt: "與他說話", act: () => { player.stats.sani += 10; player.stats.stam -= 20; return "你對著空氣自言自語了十分鐘，浪費了體力與氧氣。(體力-20 / 理智+10)"; }}] },
+            { id: "mal_call", title: "呼喚", text: "在呼嘯的風聲中，你清晰地聽見了家人在叫你回家吃飯，聲音是那麼溫暖、真實。", opts: [{ txt: "回頭尋找", act: () => { player.progress -= 5; player.stats.sani -= 60; return "你解開鎖扣往回走，差點滑下懸崖。你意識到自己瘋了。(進度倒退 / 理智-60)"; }}, { txt: "大吼閉嘴", act: () => { player.stats.stam -= 15; return "你憤怒地嘶吼，雖然趕走了聲音，但喉嚨被冷空氣灼傷。(體力-15)"; }}] }
+        ],
+        zones: [
+        [ 
+            { id: "z1_screw", title: "冰螺絲鬆脫", text: "固定路繩的冰螺絲已經鬆動,搖搖欲墜。", opts:[{txt:"自行加固", act:()=>{player.stats.stam-=15; return "消耗體力,但確保了安全。(體力-15)";}}, {txt:"快速通過", act:()=>{ if(Math.random()>0.5) return "運氣不錯,螺絲沒掉。(無事)"; else {player.stats.stam-=30; return "螺絲彈出,你滑落了一段距離!(體力-30)";}}}] }, 
+            { id: "z1_glove", title: "遺落的手套", text: "雪地上有一隻看起來很新的專業登山手套。", opts:[{txt:"撿起來", act:()=>{player.stepInDay+=1; player.stats.sani+=5; return "裡面塞滿了雪,清理它浪費了時間。(時間+1 / 理智+5)";}}, {txt:"無視", act:()=>{player.stats.sani-=10; return "這是不祥之兆。(理智-10)";}}] }, 
+            { id: "z1_serac", title: "冰塔崩塌", text: "巨大的冰柱在你身旁發出雷鳴般的斷裂聲!", opts: [{ txt: "緊急閃避", act: () => { player.stats.stam -= 25; return "你狼狽地滾向一邊。(體力-25)"; }}, { txt: "呆住不動", act: () => { if(player.stats.sani > 50) return "運氣好,冰塊沒砸中。(無事)"; else { player.stats.sani -= 40; return "你被巨響嚇壞了。(理智-40)"; }}}] }, 
+            { id: "z1_ladder", title: "梯子上的恐懼", text: "前面的登山者在跨越裂縫的鋁梯上停住了,渾身顫抖擋住了路。", opts: [{txt:"大聲鼓勵他", act:()=>{player.stats.stam-=10; player.stats.sani+=10; return "你喊破了喉嚨給他打氣。他終於動了。(體力-10 / 理智+10)";}}, {txt:"催促施壓", act:()=>{player.stats.sani-=5; return "你憤怒地吼叫。他驚慌失措地爬過去了,但眼神充滿怨恨。(理智-5)";}}] }, 
+            { id: "z1_song", title: "冰河的歌聲", text: "深藏色的冰層深處傳來低沉、扭曲的呻吟聲與爆裂聲。", opts: [{txt:"靜心聆聽", act:()=>{player.stats.sani+=15; player.stepInDay+=2; return "你感受到了大自然的力量,這種恐懼感反而讓你覺得釋然。(理智+15 / 時間+2)";}}, {txt:"快速離開", act:()=>{player.stats.stam-=10; return "這種聲音聽起來像是地獄的開門聲,你只想逃離。(體力-10)";}}] },
+            // 新增事件
+            { id: "z1_puja", title: "普迦儀式", text: "路過一個雪巴人搭建的祭壇,五色經幡在風中獵獵作響,空氣中飄著燃燒松枝的香味。", opts: [{txt:"撒米祈禱", act:()=>{player.stats.sani+=25; player.stepInDay+=2; return "你停下來,學著雪巴人的樣子撒了一把米。心靈得到了極大的平靜,恐懼感消退了。(理智+25 / 時間+2)";}}, {txt:"鞠躬後離開", act:()=>{player.stats.sani+=10; return "你簡單致意後繼續趕路。雖然沒有駐足,但你感覺自己不再是被山排斥的入侵者。(理智+10)";}}] },
+            { id: "z1_porter", title: "受困的背夫", text: "一名年輕的背夫背著巨大的物資包,一只腳卡在了冰裂縫邊緣,正在掙扎。周圍沒有其他人。", opts: [{txt:"伸出援手", act:()=>{player.stats.stam-=20; player.stats.sani+=30; return "你用力拉了他一把。他雙手合十連聲道謝「Thuji che」,那真誠的笑容讓你覺得這趟旅程有了意義。(體力-20 / 理智+30)";}}, {txt:"冷漠通過", act:()=>{player.stats.sani-=30; return "你假裝沒看見繞了過去。身後傳來的掙扎聲像刺一樣扎在你的良心上。(理智-30)";}}] }
+        ],
+[ 
+            { id: "z2_dehyd", title: "脫水危機", text: "酷熱讓你大量出汗,你的尿液變成了深褐色。", opts:[{txt:"燒雪化水", act:()=>{ if(player.inventory['fuel']>0){player.inventory['fuel']--; player.stepInDay+=3; player.stats.stam+=20; return "喝到了熱水,體力恢復。(燃料-1 / 體力+20)";} else return "沒有燃料!你白忙一場。(無效果)";}}, {txt:"含一口雪", act:()=>{player.stats.temp-=5; player.stats.stam-=5; return "大忌!口腔熱量流失。(體溫-5)";}}] }, 
+            { id: "z2_maze", title: "冰裂縫迷宮", text: "前方出現密集的裂縫帶,路繩被埋沒了。", opts:[{txt:"尋找路繩", act:()=>{player.stepInDay+=4; player.stats.stam-=10; return "花了很久時間挖掘。(時間+4 / 體力-10)";}}, {txt:"直接跳躍", act:()=>{player.stats.stam-=25; return "連續跳躍極度消耗體能。(體力-25)";}}] }, 
+            { id: "z2_blind", title: "雪盲", text: "為了擦汗你暫時摘下了護目鏡,強烈的紫外線讓你雙眼刺痛。", opts: [{ txt: "停下冷敷", act: () => { player.stepInDay += 5; player.stats.temp -= 5; return "視力恢復了,但浪費了時間。(時間+5 / 體溫-5)"; }}, { txt: "摸黑前進", act: () => { player.stats.sani -= 30; return "你在黑暗中跌跌撞撞。(理智-30)"; } } ] }, 
+            { id: "z2_tea", title: "熱茶的邀請", text: "一位雪巴嚮導在路邊燒水,硬給你一杯加了糖的紅茶。", opts: [{txt:"接受好意", act:()=>{player.stats.stam+=10; player.stats.sani+=10; player.stepInDay+=2; return "溫暖的糖水滋潤了喉嚨,短暫的社交讓你放鬆。(體力+10 / 理智+10 / 時間+2)";}}, {txt:"婉拒趕路", act:()=>{return "你指了指手錶拒絕了。保持節奏很重要。";}}] }, 
+            { id: "z2_silence", title: "白色寂靜", text: "風突然停了。四周是刺眼的白色雪原,安靜得可怕。", opts: [{txt:"環顧群山", act:()=>{player.stats.sani+=20; player.stepInDay+=1; return "努子峰和洛子峰的連線壯麗無比。你拍了一張照片。(理智+20 / 時間+1)";}}, {txt:"低頭看路", act:()=>{player.stats.sani-=5; return "你看都不敢看,生怕被這巨大的空曠感吞噬。(理智-5)";}}] },
+            // 新增事件
+            { id: "z2_lostfound", title: "前人遺物", text: "你踢到了一個被雪埋住的防水袋,看起來是去年的隊伍留下的。", opts: [{txt:"打開看看", act:()=>{ if(Math.random()>0.6) { player.inventory['food'] = (player.inventory['food']||0)+1; return "運氣不錯!裡面有一包沒過期的口糧。(獲得口糧)"; } else { player.stats.sani-=10; return "裡面只有垃圾和破損的襪子,令人失望。(理智-10)"; }}}, {txt:"無視", act:()=>{ return "多餘的負重會殺死你。";}}] },
+            { id: "z2_microwave", title: "微波爐效應", text: "山谷地形聚集了陽光,溫度熱得像桑拿房,你的皮膚開始刺痛。", opts: [{txt:"停下塗防曬霜", act:()=>{player.stepInDay+=2; player.stats.sani+=5; return "你仔細保護了皮膚,雖然花費了時間,但心裡踏實了。(時間+2 / 理智+5)";}}, {txt:"忍耐", act:()=>{player.stats.sani-=25; return "晚上你的臉將會脫皮並劇痛,這種痛苦會折磨你的精神。(理智-25)";}}] }
+        ],
+        [ 
+            { id: "z3_ice", title: "碎冰雨", text: "上方攀登者的冰爪踢落了大量碎冰,像雨點一樣落下。", opts:[{txt:"低頭硬扛", act:()=>{return "護目鏡被砸裂了一條縫,視野受損。";}}, {txt:"左右閃避", act:()=>{player.stats.stam-=20; return "在高坡上頻繁移動非常累。(體力-20)";}}] }, 
+            { id: "z3_drop", title: "手套滑落", text: "你在換扣環時,一隻手套滑落,掛在了下方 5 米處。", opts:[{txt:"爬下去撿", act:()=>{ if(Math.random()>0.5){player.stats.sani+=10; return "撿回來了!(理智+10)";} else {player.stats.stam-=30; return "沒撿到,還浪費了力氣。(體力-30)";} }}, {txt:"放棄", act:()=>{player.stats.temp-=20; player.stats.sani-=20; return "意味著凍傷風險。(體溫-20 / 理智-20)";}}] }, 
+            { id: "z3_rock", title: "落石", text: "黃帶岩層的石頭鬆動滾落。", opts: [{ txt: "依靠頭盔", act: () => { if(Math.random()>0.5) return "石頭砸在背包上,安全。"; else { player.stats.stam -= 20; return "石頭砸中肩膀!(體力-20)"; }}}] }, 
+            { id: "z3_tangle", title: "糾纏的路繩", text: "你和一名下撤的登山者的安全扣繩糾纏在了一起,懸掛在冰坡上。", opts: [{txt:"耐心解開", act:()=>{player.stats.temp-=10; return "你脫下手套,手指凍得發痛,但終於解開了繩結。(體溫-10)";}}, {txt:"割斷對方", act:()=>{player.stats.sani-=30; return "你割斷了他的一根輔助繩。他驚恐地看著你。(理智-30)";}}] }, 
+            { id: "z3_gaze", title: "深淵凝視", text: "你掛在冰壁上休息,回頭望向身後千米的落差。", opts: [{txt:"直視深淵", act:()=>{player.stats.sani-=20; return "一種想要跳下去的衝動襲來,你嚇出一身冷汗。(理智-20)";}}, {txt:"緊貼冰壁", act:()=>{player.stats.stam-=5; return "你把臉貼在冰面上,不敢回頭,直到心跳平復。(體力-5)";}}] },
+            // 新增事件
+            { id: "z3_flow", title: "完美的節奏", text: "機械式的攀登動作讓你進入了一種奇妙的恍惚狀態。你不覺得累,也不覺得冷。", opts: [{txt:"維持這個節奏", act:()=>{player.stats.stam+=15; player.stats.sani+=15; return "你在這種禪定的狀態中攀登了一小時,感覺身體比出發時還要輕盈。(體力+15 / 理智+15)";}}, {txt:"利用狀態加速", act:()=>{player.progress+=3; player.stats.stam-=5; return "你趁著狀態極佳,加快了腳步,超越了兩組緩慢的隊伍。(進度+3 / 體力-5)";}}] },
+            { id: "z3_crampon", title: "冰爪鬆動", text: "在70度的藍冰坡上,你的右腳冰爪綁帶鬆了,隨時可能脫落。", opts: [{txt:"冒險重新綁", act:()=>{ if(Math.random()>0.6) { player.stats.stam-=10; return "你在極度危險的姿勢下綁好了它。(體力-10)"; } else { player.stats.stam-=40; player.deathRisk+=15; return "你手滑了!滑墜了幾米才被安全繩拉住,魂飛魄散。(體力-40 / 死亡率+15%)"; }}}, {txt:"勉強支撐", act:()=>{player.stats.stam-=20; return "你更多地依靠手臂力量拉上升器,雙臂酸痛無比。(體力-20)";}}] }
+        ],
+[ 
+            { id: "z4_zip", title: "凍結的拉鍊", text: "你想拿水喝,但連體衣的拉鍊完全凍死,拉不開。", opts:[{txt:"用蠻力拉", act:()=>{player.stats.temp-=10; return "拉鍊壞了,冷風直灌。(體溫持續下降)";}}, {txt:"放棄喝水", act:()=>{player.stats.hung-=20; player.stats.sani-=20; return "口渴難耐。(飢餓-20 / 理智-20)";}}] }, 
+            { id: "z4_oldoxy", title: "遺棄的氧氣瓶", text: "雪地裡埋著半瓶氧氣,是去年隊伍留下的。", opts:[{txt:"更換使用", act:()=>{ if(Math.random()>0.7){ player.stats.stam+=30; player.stats.sani+=15; return "運氣好!裡面還有氧氣。(體力+30 / 理智+15)";} else { return "是壞的,什麼都沒有發生。(無效果)";} }}, {txt:"不冒險", act:()=>{return "安全但遺憾。";}}] }, 
+            { id: "z4_dying", title: "垂死求救", text: "路邊坐著一個瀕死的登山者:「氧氣...給我一點氧氣...」", opts: [{ txt: "分給他氧氣", cond: (p)=>p.inventory['oxygen']>0, act: () => { player.inventory['oxygen']--; player.stats.sani += 40; return "你給了他氣瓶。你守住了人性。(失去氧氣 / 理智+40)"; }}, { txt: "無視", act: () => { player.stats.sani -= 40; return "8000米以上無道德。(理智-40)"; }}, { txt: "拿走物資", cond: (p)=>p.stats.sani<30, act: () => { player.inventory['food']=(player.inventory['food']||0)+1; player.stats.sani -= 100; return "你拿走了他的口糧。(獲得口糧 / 理智-100)"; }}] }, 
+            { id: "z4_sitter", title: "坐著的人", text: "路邊坐著一個人,兜帽蓋住了臉,一動不動。", opts: [{txt:"上前拍拍他", act:()=>{player.stats.sani-=25; return "他是硬的。你觸摸到了死亡。(理智-25)";}}, {txt:"繞道而行", act:()=>{player.stats.stam-=5; return "你假裝他只是在休息,低著頭快速通過。(體力-5)";}}] }, 
+            { id: "z4_stars", title: "白晝星辰", text: "天空呈現出深邃的黑紫色,即使是正午,你也依稀看到星星。", opts: [{txt:"抬頭仰望", act:()=>{player.stats.sani+=10; player.stats.temp-=5; return "你感覺自己正在太空中漫步。(理智+10 / 體溫-5)";}}, {txt:"檢查氧氣", act:()=>{return "你不關心星星,你只關心還能活多久。";}}] },
+            // 新增事件
+            { id: "z4_ghosttent", title: "幽靈帳篷", text: "狂風中你看見前方有一個殘破的帳篷,似乎還能勉強避風。", opts: [{txt:"躲在殘骸後喘息", act:()=>{player.stats.temp+=10; player.stepInDay+=2; return "聊勝於無,這裡的風速稍微小了一點,你感覺身體回暖了些許。(體溫+10 / 時間+2)";}}, {txt:"搜索帳篷內部", act:()=>{ if(Math.random()>0.7) { player.stats.stam+=20; player.stats.sani+=10; return "你在角落發現了半罐剩下的氧氣!吸了幾口後精神大振。(體力+20 / 理智+10)"; } else { player.stats.sani-=35; return "裡面只有一具凍僵的屍體,你尖叫著退了出來。(理智-35)"; }}}] },
+            { id: "z4_frozenmask", title: "面罩結冰", text: "你的氧氣面罩出氣孔被呼出的水氣凍住了,呼吸變得極其困難。", opts: [{txt:"停下清理冰塊", act:()=>{player.stepInDay+=2; player.stats.temp-=15; return "你摘下手套摳掉了冰塊。手凍僵了,但終於能順暢呼吸了。(時間+2 / 體溫-15)";}}, {txt:"用力吸氣", act:()=>{player.stats.stam-=25; return "每一口氣都像在拉風箱,肺部劇烈燃燒,極度消耗體力。(體力-25)";}}] }
+        ],            [
+{ id: "z5_boot", title: "屍體路標", text: "你必須跨過那具著名的「綠靴子」遺體。", opts:[{txt:"跨過去", act:()=>{player.stats.sani-=40; return "近距離接觸死亡。(理智-40)";}}, {txt:"繞外側走", act:()=>{player.stats.stam-=20; player.stats.sani-=10; return "解開路繩繞路,腳下就是懸崖。(體力-20)";}}] },
+{ id: "z5_queue", title: "登頂排隊", text: "前面的人動作極慢,擋住了唯一的路。", opts:[{txt:"推他一把", act:()=>{player.stats.sani-=60; return "你為了生存變得殘忍。(理智-60)";}}, {txt:"幫他一把", act:()=>{player.stats.stam-=40; return "你推著他走,耗盡了力氣。(體力-40)";}}] },
+{ id: "z5_jam", title: "大塞車", text: "希拉里台階上有人卡住了。", opts: [{ txt: "原地等待", act: () => { player.stats.temp -= 20; player.stats.stam -= 10; return "你在寒風中站了半小時。(體溫-20 / 體力-10)"; }}, { txt: "解鎖超車", act: () => { if(player.gear.includes('crampons')) { player.stats.stam -= 30; return "極度危險,幸好有冰爪。(體力-30)"; } else { player.stats.stam = 0; player.stats.temp = 0; return "沒有冰爪,你腳下一滑...(死亡判定)"; }}}] },
+{ id: "z5_photo", title: "登頂合照", text: "有人拉住你,想在狹窄的山脊上合影留念。", opts: [{txt:"配合拍照", act:()=>{player.stats.temp-=20; player.stats.sani+=20; return "你摘下手套比了個讚。幾秒鐘,手指失去了知覺。(體溫-20 / 理智+20)";}}, {txt:"推開他", act:()=>{player.stats.stam-=5; return "在這裡每一秒都是命,你沒心情搞社交。(體力-5)";}}] },
+
+// 新增事件
+{ id: "z5_dawn", title: "世界的黎明", text: "金色的陽光瞬間刺破雲層,巨大的金字塔形陰影投射在下方的雲海之上。", opts: [{txt:"震撼注視", act:()=>{player.stats.sani = 100; return "這就是世界之巔的證明。這一刻的壯麗足以抵消所有的痛苦。(理智回滿)";}}, {txt:"專注腳下", act:()=>{player.progress+=1; return "你只看著腳下的岩石。活著回家比看風景更重要。(進度+1)";}}] },
+{ id: "z5_silentplea", title: "無言的請求", text: "路邊坐著一個意識模糊的登山者,面罩掛在下巴上,眼神渙散。看到你經過,他艱難地抬起手,發出嘶啞的聲音乞討物資。", opts: [
+{ txt: "分給他口糧", cond: (p)=>p.inventory['food']>0, act: () => { player.inventory['food']--; if(player.inventory['food']===0) delete player.inventory['food']; player.stats.sani += 50; return "你把珍貴的能量棒塞進他手裡。這救不了他的命,但救贖了你的人性。(失去口糧 / 理智+50)"; }},
+{ txt: "分給他燃料", cond: (p)=>p.inventory['fuel']>0, act: () => { player.inventory['fuel']--; if(player.inventory['fuel']===0) delete player.inventory['fuel']; player.stats.sani += 50; return "你把固體燃料遞給他。有了這個他就能化雪喝水。哪怕只是微弱的希望,也比絕望好。(失去燃料 / 理智+50)"; }},
+{ txt: "無視", act: () => { player.stats.sani -= 40; return "在8000米以上,道德是一種奢侈品。你硬起心腸跨過了他的腿,背後傳來微弱的嘆息聲。(理智-40)"; }}
+] }
+]
+]
+};
+
+    /* --- GAME STATE --- */
+    let player = {
+        money: 13000, 
+        inventory: {}, 
+        gear: [],      
+        stats: { stam: 100, temp: 100, hung: 100, sani: 100 },
+        minStats: { stam: 100, temp: 100, hung: 100, sani: 100 }, 
+        progress: 0.0,
+        maxProgress: 0.0, 
+        stepInDay: 0, 
+        dayCount: 1, 
+        totalSteps: 0, 
+        isNight: false,
+        isDescending: false, 
+        blizzard: { active: false, timer: 0 }, 
+        summitAborted: false, 
+        locName: "昆布冰川",
+        eventHistory: [],
+        hypoxiaMode: false,
+        deathRisk: 0,
+        maxDeathRisk: 0,
+        hasSummited: false,
+        summitedWithoutO2: false
+    };
+
+    /* --- INITIALIZATION --- */
+    function initShop() {
+        const container = document.getElementById('shop-list');
+        container.innerHTML = ''; 
+        ITEMS.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'item-card';
+            let actionHtml = `
+                <button class="btn-qty" onclick="modifyItem('${item.id}', -1)">-</button>
+                <span id="cnt-${item.id}" class="qty-display">0</span>
+                <button class="btn-qty" onclick="modifyItem('${item.id}', 1)">+</button>
+            `;
+            div.innerHTML = `
+                <div class="item-info">
+                    <div style="font-weight:bold; color:#fff">${item.name}</div>
+                    <div style="font-size:0.8em; color:#888;">$${item.price} | ${item.weight}kg</div>
+                    <div style="font-size:0.8em; color:#aaa;">${item.desc}</div>
+                </div>
+                <div class="item-actions">${actionHtml}</div>
+            `;
+            container.appendChild(div);
+        });
+        updateShopUI();
+        
+        // Initial Background
+        setBg('title');
+    }
+
+    /* --- NAVIGATION --- */
+    function enterDifficultySelection() {
+        document.getElementById('title-screen').classList.remove('active-screen');
+        document.getElementById('difficulty-screen').classList.add('active-screen');
+    }
+
+    function selectDifficulty(diff) {
+        currentDiff = diff;
+        const config = DIFFICULTIES[diff];
+        
+        // Apply settings
+        player.money = config.money;
+        
+        // Refresh Shop UI to show correct money
+        updateShopUI();
+        
+        // Move to Shop
+        document.getElementById('difficulty-screen').classList.remove('active-screen');
+        document.getElementById('shop-screen').classList.add('active-screen');
+        setBg('shop');
+    }
+
+    function startGame() {
+        if (getWeight() > 35) return alert("超重無法出發！");
+        const hasCoat = player.gear.some(id => ITEMS.find(i=>i.id===id).category==='coat');
+        if(!hasCoat && !confirm("你沒有買外套！這幾乎等於自殺。確定要出發嗎？")) return;
+
+        document.getElementById('shop-screen').classList.remove('active-screen');
+        document.getElementById('game-screen').classList.add('active-screen');
+        
+        log("遠征開始。目標：登頂並活著回來。", "event");
+        updateHUD();
+    }
+
+    /* --- SHOP LOGIC --- */
+    function modifyItem(id, change) {
+        const item = ITEMS.find(i => i.id === id);
+        
+        if (item.type === 'gear' || item.type === 'tool') {
+            if (change > 0) {
+                if (player.gear.includes(id)) return; 
+                
+                if (item.category === 'coat' || item.category === 'bag') {
+                    const conflict = ITEMS.find(i => i.category === item.category && player.gear.includes(i.id));
+                    if (conflict) {
+                        alert(`你已經擁有 ${conflict.name}，必須先賣出才能購買 ${item.name}。`);
+                        return;
+                    }
+                }
+
+                if (attemptTransaction(item.price, item.weight)) {
+                    player.gear.push(id);
+                }
+            } else {
+                if (player.gear.includes(id)) {
+                    player.money += item.price;
+                    player.gear = player.gear.filter(g => g !== id);
+                }
+            }
+        } 
+        else {
+            const currentCount = player.inventory[id] || 0;
+            if (change > 0) {
+                if (attemptTransaction(item.price, item.weight)) player.inventory[id] = currentCount + 1;
+            } else if (currentCount > 0) {
+                player.money += item.price;
+                player.inventory[id] = currentCount - 1;
+                if (player.inventory[id] === 0) delete player.inventory[id];
+            }
+        }
+        updateShopUI();
+    }
+
+    function attemptTransaction(cost, weight) {
+        if (player.money < cost) { alert("資金不足"); return false; }
+        if (getWeight() + weight > 35) { alert("太重了"); return false; }
+        player.money -= cost;
+        return true;
+    }
+
+    function getWeight() {
+        let w = 0;
+        player.gear.forEach(id => w += ITEMS.find(i=>i.id===id).weight);
+        for(let id in player.inventory) w += ITEMS.find(i=>i.id===id).weight * player.inventory[id];
+        return Math.round(w*10)/10;
+    }
+
+    function updateShopUI() {
+        document.getElementById('shop-money').innerText = '$'+player.money;
+        const w = getWeight();
+        const wEl = document.getElementById('shop-weight');
+        wEl.innerText = w;
+        wEl.style.color = w > 35 ? '#d9534f' : '#ccc';
+        
+        ITEMS.forEach(item => {
+            const cntSpan = document.getElementById('cnt-'+item.id);
+            if (item.type === 'gear' || item.type === 'tool') {
+                cntSpan.innerText = player.gear.includes(item.id) ? "1" : "0";
+            } else {
+                cntSpan.innerText = player.inventory[item.id] || 0;
+            }
+        });
+    }
+
+    /* --- ENVIRONMENT FACTORS --- */
+    function getEnvFactors() {
+        let factors = { climb: { day: 3, night: 8 }, rest:  { day: 10, night: 20 }, desc: "寒冷" };
+        if (player.progress >= 60 && player.progress < 80) {
+            factors.climb = { day: 4, night: 10 }; factors.rest  = { day: 12, night: 25 }; factors.desc = "刺骨";
+        } 
+        else if (player.progress >= 80) {
+            factors.climb = { day: 6, night: 15 }; factors.rest  = { day: 15, night: 35 }; factors.desc = "致命"; 
+        }
+        return factors;
+    }
+
+    /* --- LOCATION MAPPING --- */
+    function getDetailedLocationName(progress) {
+        if (progress >= 100) return "聖母峰頂 (8848m)";
+        if (progress >= 96) return "峰頂路脊 (8800m+)";
+        if (progress >= 92) return "希拉里台階 (8790m)";
+        if (progress >= 88) return "南峰 (8749m)";
+        if (progress >= 82) return "陽台 (8400m)";
+        if (progress >= 80) return "C4 南坳 (7950m)";
+        
+        if (progress >= 72) return "日內瓦希德 (7600m)";
+        if (progress >= 65) return "黃帶岩層 (7400m)";
+        if (progress >= 60) return "C3 洛子壁 (7162m)";
+
+        if (progress >= 55) return "垂直極限冰壁 (7000m)";
+        if (progress >= 45) return "藍冰坡 (6700m)";
+        if (progress >= 40) return "C2 前進基地營 (6400m)";
+
+        if (progress >= 35) return "洛子壁基底 (6200m)";
+        if (progress >= 25) return "沉默山谷平原 (6000m)";
+        if (progress >= 20) return "C1 冰川孤島 (5943m)";
+
+        if (progress >= 12) return "冰川上部 (5800m)";
+        if (progress >= 5) return "爆米花田 (5500m)";
+        return "基地營碎石坡 (5364m)";
+    }
+
+    /* --- BACKGROUND SYSTEM --- */
+    function setBg(key) {
+        // Pre-defined keys
+        if (BG_IMAGES[key]) {
+            document.body.style.backgroundImage = BG_IMAGES[key];
+            return;
+        }
+        
+        // Progress-based logic (0-100)
+        let bgKey = 'zone1';
+        if (key >= 100) bgKey = 'zone5'; // Summit
+        else if (key >= 80) bgKey = 'zone5';
+        else if (key >= 60) bgKey = 'zone4';
+        else if (key >= 40) bgKey = 'zone3';
+        else if (key >= 20) bgKey = 'zone2';
+        
+        if (player.blizzard.active) bgKey = 'blizzard';
+        
+        document.body.style.backgroundImage = BG_IMAGES[bgKey];
+    }
+
+    /* --- GLOBAL STATS CLAMPING --- */
+    function normalizeStats() {
+        player.stats.stam = Math.max(0, Math.min(100, player.stats.stam));
+        player.stats.temp = Math.max(0, Math.min(100, player.stats.temp));
+        player.stats.hung = Math.max(0, Math.min(100, player.stats.hung));
+        player.stats.sani = Math.max(0, Math.min(100, player.stats.sani));
+        ['stam','temp','hung','sani'].forEach(k => {
+            if (player.stats[k] < player.minStats[k]) player.minStats[k] = player.stats[k];
+        });
+        if (player.deathRisk > player.maxDeathRisk) player.maxDeathRisk = player.deathRisk;
+    }
+
+    /* --- TOGGLE DIRECTION --- */
+    function toggleDirection() {
+        if (player.progress <= 0 || player.progress >= 100) return; 
+        
+        if (player.summitAborted && player.isDescending) {
+            log("你已經放棄了這次攻頂，必須先回到營地整補才能再次嘗試。", "critical");
+            return;
+        }
+
+        player.isDescending = !player.isDescending;
+        updateToggleBtn();
+    }
+
+    function updateToggleBtn() {
+        const btn = document.getElementById('btn-toggle');
+        if (player.isDescending) {
+            btn.innerText = "⬇ 下撤中 (點擊切換)";
+            btn.style.color = "#4caf50";
+            btn.style.borderColor = "#4caf50";
+        } else {
+            btn.innerText = "⬆ 攻頂中 (點擊切換)";
+            btn.style.color = "var(--accent-blue)";
+            btn.style.borderColor = "var(--accent-blue)";
+        }
+        updateHUD(); 
+    }
+
+    /* --- GAME LOOP --- */
+    function actionClimb() {
+        if(checkDeath()) return;
+
+        if(player.progress <= 0) player.isDescending = false;
+        if(player.progress >= 100) player.isDescending = true;
+        updateToggleBtn();
+
+        if (!player.isDescending && player.progress > 80 && !player.eventHistory.includes('fix_summit')) {
+            player.eventHistory.push('fix_summit');
+            triggerSummitPushEvent();
+            return; 
+        }
+
+        let realProgress = (player.stats.stam / 100) * 2.0 + 0.6; 
+        if (player.isDescending) realProgress *= 2; 
+
+        const weight = getWeight();
+        let stamCost = 3 + (weight * 0.4); 
+        if (player.gear.includes('crampons')) stamCost *= 0.8;
+
+        const env = getEnvFactors();
+        let activeWarmth = 0;
+        player.gear.forEach(id => {
+            let it = ITEMS.find(i=>i.id===id);
+            if(it.warm) activeWarmth += it.warm;
+        });
+
+        let baseTempLoss = player.isNight ? env.climb.night : env.climb.day;
+        
+        let bzStamMult = 1;
+        let bzTempMult = 1;
+        let bzSaniMult = 1;
+
+        if (player.blizzard.active) {
+            bzStamMult = 2; bzTempMult = 3; bzSaniMult = 2;
+            player.blizzard.timer--;
+            if (player.blizzard.timer <= 0) {
+                player.blizzard.active = false;
+                log("暴風雪終於停了。", "event");
+            }
+        } else {
+            // Difficulty-based Blizzard Chance
+            let baseChance = 0.02; 
+            if (player.progress >= 80) baseChance = 0.05;
+            else if (player.progress >= 60) baseChance = 0.03;
+            
+            // Apply Difficulty Modifier
+            let finalChance = baseChance * DIFFICULTIES[currentDiff].bzMod;
+
+            if (Math.random() < finalChance) {
+                player.blizzard.active = true;
+                player.blizzard.timer = 20;
+                log("狂風呼嘯！一場可怕的暴風雪降臨了。(環境失溫x3, 消耗x2)", "critical");
+            }
+        }
+
+        let tempCost = Math.max(0, (baseTempLoss * bzTempMult) - activeWarmth);
+        
+        const hypoxiaMult = player.hypoxiaMode ? 2 : 1;
+        
+        // Difficulty Multiplier
+        const diffMult = DIFFICULTIES[currentDiff].mult;
+        if (player.gear.includes('poles') && player.progress < 60) {
+        stamCost = Math.max(1, stamCost - 2);
+        }
+
+        player.stats.stam -= (stamCost * hypoxiaMult * bzStamMult * diffMult);
+        player.stats.temp -= (tempCost * diffMult); 
+        player.stats.hung -= (3 * diffMult); 
+        let saniCost = player.isNight ? 6 : 3;
+        if (player.isNight && player.gear.includes('headlamp')) {
+        saniCost *= 0.5;
+        }
+        player.stats.sani -= (saniCost * hypoxiaMult * bzSaniMult * diffMult);
+        
+        player.stepInDay++;
+        player.totalSteps++;
+
+        if (!player.isDescending && player.progress + realProgress > player.maxProgress) {
+            player.maxProgress = player.progress + realProgress;
+        }
+
+        if (player.progress < 80 && player.eventHistory.includes('fix_summit')) {
+            player.eventHistory = player.eventHistory.filter(e => e !== 'fix_summit');
+            player.hypoxiaMode = false;
+            document.getElementById('hypoxia-alert').style.display = 'none';
+            log("離開了死亡地帶，你的身體狀況暫時回穩，但再次攻頂需重新調整呼吸。", "event");
+        }
+
+        let nextCamp = CAMPS.find(c => c > player.progress);
+        if (player.isDescending) nextCamp = [...CAMPS].reverse().find(c => c < player.progress);
+        
+        let moved = false;
+        let reachedCamp = false;
+        
+        if (!player.isDescending) {
+            player.progress += realProgress;
+            moved = true;
+            if (nextCamp && player.progress >= nextCamp) {
+                player.progress = nextCamp;
+                reachedCamp = true;
+            }
+        } else {
+            player.progress -= realProgress;
+            moved = true;
+            if (nextCamp !== undefined && player.progress <= nextCamp) {
+                player.progress = nextCamp;
+                if(nextCamp === 0) {
+                    endGame(true);
+                    return;
+                }
+                reachedCamp = true;
+            }
+        }
+
+        if (player.hypoxiaMode && player.progress < 80) {
+            player.hypoxiaMode = false;
+            document.getElementById('hypoxia-alert').style.display = 'none';
+        }
+
+        checkTimePassage();
+        checkRiskEvents();
+
+        if (reachedCamp) {
+            triggerCampEvent(nextCamp);
+            return;
+        }
+
+        const eventProb = player.isNight ? 0.35 : 0.25;
+        const shouldTriggerEvent = Math.random() < eventProb;
+        
+        if (shouldTriggerEvent) {
+            handleRandomEvent();
+        } else {
+            if (Math.random() < 0.7) {
+                generateFlavorText();
+            } else {
+                updateHUD();
+            }
+        }
+        
+        checkDeath();
+    }
+
+    function checkTimePassage() {
+        if (player.stepInDay >= DAY_LENGTH) {
+            player.stepInDay = 0; 
+            player.dayCount++;
+            player.isNight = false; 
+            document.getElementById('main-view').classList.remove('night-mode');
+            log(`第 ${player.dayCount} 天：漫長的黑夜過去了，黎明照在雪山上。`, "event");
+            player.stats.sani += 5;
+        } else if (player.stepInDay > DAY_STEPS && !player.isNight) {
+            player.isNight = true;
+            log("太陽下山了，氣溫驟降。", "critical");
+            document.getElementById('main-view').classList.add('night-mode');
+        }
+    }
+
+/* --- SHOVEL & SNOW CAVE SYSTEM (UPDATED) --- */
+    function performSnowCaveRest() {
+        // 先檢查狀態，避免死人挖洞
+        if(checkDeath()) return;
+
+        log("你開始挖掘並躲入雪洞，時間在寒風中緩慢流逝...", "event");
+
+        const duration = 20; // 雪鏟消耗 20 時間單位
+        let totalStamGain = 0;
+        let totalTempLost = 0;
+        
+        // --- 核心修改：多次結算迴圈 ---
+        for (let i = 0; i < duration; i++) {
+            
+            // 1. 每一步都進行死亡判定 (體現緊急避險的風險)
+            if (checkDeath()) return; 
+
+            // 2. 時間流逝
+            player.stepInDay++;
+            player.totalSteps++;
+            checkTimePassage(); // 檢查是否日夜交替，這會影響下方的 env 數值
+
+            // 3. 恢復體力與消耗飢餓 (平均分攤到每一步)
+            // 總共 +30 體力, -20 飢餓
+            player.stats.stam += 1.5;   
+            player.stats.hung -= 1; 
+            if (player.stats.stam > 100) player.stats.stam = 100;
+
+            // 4. 計算環境因素
+            const env = getEnvFactors();
+            let staticWarmth = 0;
+            player.gear.forEach(id => {
+                let it = ITEMS.find(i=>i.id===id);
+                if(it.campWarm) staticWarmth += it.campWarm;
+            });
+
+            // 5. 處理暴風雪
+            let currentBzMult = 1; // 預設為 1 (正常天氣)
+
+            if (player.blizzard.active) {
+                currentBzMult = 1.5; // 只有在暴風雪活躍時，才改為 1.5
+    
+                player.blizzard.timer--; 
+                if (player.blizzard.timer <= 0) {
+                    player.blizzard.active = false;
+                    log("雪洞外面的風雪停了。", "event");
+                    // 下一圈迴圈時，currentBzMult 就會變回 1
+                }
+            }
+            // 6. 計算這一小步的體溫流失
+            let baseLoss = player.isNight ? env.rest.night : env.rest.day;
+            const diffMult = DIFFICULTIES[currentDiff].mult;
+            
+            // 基礎流失 - 裝備保暖
+            let rawLoss = (baseLoss * currentBzMult * diffMult) - staticWarmth;
+            
+            // 雪鏟保護機制：
+            // 因為我們要結算 20 次，所以單次流失必須很低，否則必死。
+            // 這裡設定為 rawLoss / 10。
+            // 邏輯：挖洞躲避了絕大部分寒風，但地板還是冰的。
+            // 總流失量約為：(原環境流失 / 10) * 20 = 2倍的原環境單步流失。
+            // 這比帳篷(可能回溫)差，但比露宿(20倍流失)強太多。
+            let stepLoss = Math.max(0, rawLoss) / 10; 
+            
+            player.stats.temp -= stepLoss;
+            totalTempLost += stepLoss;
+        }
+
+        // 迴圈結束後的UI更新
+        updateHUD();
+        closeModal();
+        
+        // 總結報告
+        log(`雪洞庇護結束。雖然體溫流失了，但你撐過了這段時間。(體力+30 / 飢餓-20)`, "event");
+    }
+    function actionRest() {
+        if(checkDeath()) return;
+        player.stats.stam += 15;
+        player.stats.hung -= 5;
+        player.stepInDay++; 
+        player.totalSteps++; 
+
+        const env = getEnvFactors();
+        let staticWarmth = 0;
+        player.gear.forEach(id => {
+            let it = ITEMS.find(i=>i.id===id);
+            if(it.campWarm) staticWarmth += it.campWarm;
+        });
+
+        let baseLoss = player.isNight ? env.rest.night : env.rest.day;
+        
+        let bzTempMult = 1;
+        if (player.blizzard.active) {
+            bzTempMult = 3;
+            player.blizzard.timer--;
+            if (player.blizzard.timer <= 0) {
+                player.blizzard.active = false;
+                log("暴風雪終於停了。", "event");
+            }
+        } else {
+             let baseChance = 0.02; 
+             if (player.progress >= 80) baseChance = 0.05;
+             else if (player.progress >= 60) baseChance = 0.03;
+             
+             let finalChance = baseChance * DIFFICULTIES[currentDiff].bzMod;
+
+             if (Math.random() < finalChance) {
+                player.blizzard.active = true;
+                player.blizzard.timer = 20;
+                log("狂風呼嘯！一場可怕的暴風雪降臨了。(環境失溫x3, 消耗x2)", "critical");
+            }
+        }
+
+        // Apply Difficulty Multiplier
+        const diffMult = DIFFICULTIES[currentDiff].mult;
+        let tempCost = Math.max(0, (baseLoss * bzTempMult * diffMult) - staticWarmth);
+        
+        player.stats.temp -= tempCost;
+
+        if (tempCost > 10) {
+            log(`你在${env.desc}的寒風中休息，體溫不升反降。`, "critical");
+        } else {
+            log("原地喘息片刻，體力稍稍恢復。", "normal");
+        }
+        
+        checkTimePassage();
+        updateHUD();
+    }
+
+    /* --- CAMP SYSTEM --- */
+    function triggerCampEvent(campLevel) {
+        updateHUD();
+        const isSummit = campLevel === 100;
+        
+        if (isSummit) {
+            player.hasSummited = true; 
+            player.isDescending = true; 
+            
+            if (player.hypoxiaMode) {
+                player.summitedWithoutO2 = true;
+                log("【傳奇時刻】你以無氧狀態站在了世界之巔！", "critical");
+            }
+            updateToggleBtn();
+        }
+        
+        let campText = CAMP_DESC[campLevel] || "營地";
+        let cleanDesc = campText.replace(/<br>/g, " ");
+        log(`[營地記錄] ${cleanDesc}`, "event");
+
+        let htmlContent = `
+            <div class="camp-desc-box">${campText}</div>
+            <div style="margin-bottom:15px;">在營地你可以整理裝備，並嘗試睡覺恢復體力。</div>
+        `;
+        
+        if(isSummit) {
+             htmlContent = `
+                <div class="camp-desc-box">${CAMP_DESC[100]}</div>
+                <div style="margin-bottom:15px;">你站在世界之巔。這只是一半，下山才是真正的挑戰。</div>
+             `;
+        }
+
+        let buttonsHtml = '';
+
+        if (isSummit) {
+             buttonsHtml += `<button class="choice-btn" style="color:#4caf50; border-color:#4caf50;" onclick="startDescent()">插上旗幟，開始下撤</button>`;
+        } else {
+             buttonsHtml += `<button class="choice-btn" onclick="openCampMenu()">整備與休息</button>`;
+             buttonsHtml += `<button class="choice-btn" onclick="skipCamp()">不休息，繼續趕路</button>`;
+        }
+        
+        let titleText = isSummit ? "抵達：聖母峰頂" : `抵達：C${campLevel/20} 營地`;
+        showModalHTML(titleText, htmlContent + buttonsHtml);
+    }
+
+    function startDescent() {
+        player.isDescending = true; 
+        updateToggleBtn();
+        player.stats.sani += 50; 
+        document.getElementById('descend-indicator').style.display = 'inline';
+        log("開始下撤。重力是你的朋友，也是敵人。", "event"); 
+        closeModal();
+    }
+
+    function skipCamp() {
+        log("你選擇不休息繼續前進。", "critical"); 
+        closeModal();
+    }
+
+    function openCampMenu() {
+        const hasFood = (player.inventory['food'] || 0) > 0;
+        const hasFuel = (player.inventory['fuel'] || 0) > 0;
+        const foodCount = player.inventory['food'] || 0;
+        const fuelCount = player.inventory['fuel'] || 0;
+
+        let html = `
+        <p>環境惡劣，你的資源決定了今晚能恢復多少。</p>
+        
+        <label class="camp-option">
+            <span>食用口糧 (庫存: ${foodCount}) <br><span style="font-size:0.8em; color:#aaa">回復飢餓</span></span>
+            <input type="checkbox" id="chk-food" ${hasFood ? 'checked' : 'disabled'}>
+        </label>
+
+        <label class="camp-option">
+            <span>使用燃料 (庫存: ${fuelCount}) <br><span style="font-size:0.8em; color:#aaa">抵禦嚴寒</span></span>
+            <input type="checkbox" id="chk-fuel" ${hasFuel ? 'checked' : 'disabled'}>
+        </label>
+
+        <button class="choice-btn" style="color:var(--accent-gold); border-color:var(--accent-gold); margin-top:20px;" onclick="sleepAction()">確認睡覺 (進入下一天)</button>
+        <button class="choice-btn" onclick="closeModal()">取消</button>
+        `;
+
+        showModalHTML("營地整備", html);
+    }
+
+    function sleepAction() {
+        const useFood = document.getElementById('chk-food')?.checked;
+        const useFuel = document.getElementById('chk-fuel')?.checked;
+
+        const hasPolar = player.gear.includes('bag_polar');
+        const hasBasic = player.gear.includes('bag_basic');
+        const _hasStove = player.gear.includes('stove');
+
+        let restore = 10;
+        let tempPenalty = 40;
+
+        if (hasPolar) {
+            restore = 50;
+            tempPenalty = -30;
+        } else if (hasBasic) {
+            restore = 50; 
+            tempPenalty = 20;
+        }
+        
+        restore += 10; 
+        
+        if (useFood && player.inventory['food'] > 0) {
+            player.inventory['food']--;
+            player.stats.hung = 100;
+            if(player.inventory['food'] === 0) delete player.inventory['food'];
+        }
+        
+        player.stats.stam += restore;
+
+        if (useFuel && _hasStove && player.inventory['fuel'] > 0) {
+            player.inventory['fuel']--;
+            player.stats.temp = 100;
+            if(player.inventory['fuel'] === 0) delete player.inventory['fuel'];
+        } else {
+            let coatWarmth = 0;
+            player.gear.forEach(id => {
+                let it = ITEMS.find(i=>i.id===id);
+                if(it.campWarm) coatWarmth += it.campWarm;
+            });
+            let finalLoss = Math.max(0, tempPenalty - coatWarmth);
+            player.stats.temp -= finalLoss;
+        }
+        
+        player.stats.sani += 40;
+        player.stepInDay = 0;
+        player.dayCount++; 
+        player.isNight = false;
+        
+        if (player.blizzard.active) {
+            player.blizzard.active = false;
+            log("你在帳篷裡躲過了一場暴風雪。", "event");
+        }
+
+        if (player.summitAborted) {
+            player.summitAborted = false;
+            player.eventHistory = player.eventHistory.filter(e => e !== 'fix_summit');
+            log("經過休息，你重新燃起了挑戰頂峰的勇氣。", "event");
+        }
+
+        document.getElementById('main-view').classList.remove('night-mode');
+        
+        if(player.blizzard.active) {
+             document.body.classList.add('blizzard-mode');
+             document.getElementById('blizzard-alert').style.display = 'inline';
+        } else {
+             document.body.classList.remove('blizzard-mode');
+             document.getElementById('blizzard-alert').style.display = 'none';
+        }
+
+        log(`第 ${player.dayCount} 天：在營地睡了一覺，體力恢復。`, "event");
+        updateHUD();
+        closeModal();
+    }
+
+    /* --- UI UTILS --- */
+    function openInventory() {
+        let html = `<div style="margin-bottom:10px; border-bottom:1px solid #444; padding-bottom:5px; color:var(--accent-gold)">裝備 (被動效果)</div>`;
+        if (player.gear.length === 0) html += `<div style="color:#666">無</div>`;
+        player.gear.forEach(id => {
+            let item = ITEMS.find(i=>i.id===id);
+            if (item.type === 'tool') {
+                 html += `<div class="inv-row" onclick="useItem('${id}')" style="cursor:pointer; border:1px solid #4a90e2; padding:5px; margin-bottom:5px; background:rgba(74, 144, 226, 0.1);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                        <span style="font-weight:bold; color:#4a90e2;">${item.name} [點擊使用]</span>
+                        <span style="font-size:0.8em; color:#ddd">${item.desc}</span>
+                    </div>
+                </div>`;
+            } else {
+                 html += `<div class="inv-row"><span>${item.name}</span><span style="font-size:0.8em; color:#888">${item.desc}</span></div>`;
+            }
+        });
+
+        html += `<div style="margin:15px 0 10px 0; border-bottom:1px solid #444; padding-bottom:5px; color:var(--accent-blue)">背包物品 (點擊使用)</div>`;
+        let hasItem = false;
+        for (let id in player.inventory) {
+            let count = player.inventory[id];
+            if(count > 0) {
+                hasItem = true;
+                let item = ITEMS.find(i=>i.id===id);
+                let extraDesc = "";
+                if (id === 'fuel') extraDesc = " (+40體溫)";
+                html += `<div class="inv-row" onclick="useItem('${id}')" style="cursor:pointer">
+                    <span>${item.name} x${count}</span>
+                    <span style="color:#4a90e2">[使用${extraDesc}]</span>
+                </div>`;
+            }
+        }
+        if (!hasItem) html += `<div style="color:#666">空</div>`;
+        
+        html += `<button class="choice-btn" style="margin-top:15px" onclick="closeModal()">關閉</button>`;
+        showModalHTML("背包檢查", html);
+    }
+
+    function useItem(id) {
+        const item = ITEMS.find(i=>i.id===id);
+
+        if(item.type === 'tool') {
+             if(id === 'shovel') performSnowCaveRest();
+             return;
+        }
+        
+        if(id === 'dex') {
+            const consumedHunger = player.stats.hung * 0.8;
+            player.stats.hung -= consumedHunger;
+            const stamGain = consumedHunger * 0.6;
+            const tempGain = consumedHunger * 0.4;
+            player.stats.stam += stamGain;
+            player.stats.temp += tempGain;
+            player.stats.sani += 40; 
+            log(`注射腎上腺素！燃燒了 ${Math.round(consumedHunger)} 點飢餓，換取體能爆發。`, "critical");
+        }
+        else if(item.effect) {
+            if(item.effect.stam) player.stats.stam += item.effect.stam;
+            if(item.effect.hung) player.stats.hung += item.effect.hung;
+            if(item.effect.sani) player.stats.sani += item.effect.sani;
+            if(item.effect.temp) player.stats.temp += item.effect.temp;
+            if(item.effect.sanity_reset) player.stats.sani = 100;
+        }
+        
+        player.inventory[id]--;
+        if(player.inventory[id] <= 0) delete player.inventory[id];
+        log(`使用了 ${item.name}`, "normal");
+        updateHUD();
+        closeModal();
+    }
+
+    function showModalHTML(title, html) {
+        document.getElementById('modal-title').innerText = title;
+        document.getElementById('modal-body').innerHTML = html;
+        document.getElementById('modal-actions').innerHTML = ''; 
+        document.getElementById('modal-overlay').style.display = 'flex';
+    }
+
+    function showModal(title, text, opts) {
+        document.getElementById('modal-title').innerText = title;
+        document.getElementById('modal-body').innerText = text;
+        const actContainer = document.getElementById('modal-actions');
+        actContainer.innerHTML = '';
+        opts.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'choice-btn';
+            btn.innerText = opt.txt;
+            btn.onclick = () => { 
+                opt.act();
+                closeModal();
+            };
+            actContainer.appendChild(btn);
+        });
+        document.getElementById('modal-overlay').style.display = 'flex';
+    }
+
+    function closeModal() { document.getElementById('modal-overlay').style.display = 'none'; }
+
+    function formatTemp(val) { return (37 + (val-100)/10).toFixed(1) + '°C'; }
+
+    function getStatColor(val, type) {
+        if (type === 'temp') {
+            if (val >= 80) return 'text-green'; // > 35.0 C
+            if (val <= 30) return 'text-red';   // < 30.0 C
+        } else {
+            if (val >= 70) return 'text-green';
+            if (val <= 30) return 'text-red';
+        }
+        return '';
+    }
+
+    function updateHUD() {
+        normalizeStats();
+
+        let isCritical = false;
+        ['stam', 'temp', 'hung', 'sani'].forEach(k => {
+            const val = Math.round(player.stats[k]);
+            const bar = document.getElementById(`bar-${k}`);
+            document.getElementById(`val-${k}`).innerText = val;
+            bar.style.width = Math.max(0, val) + '%';
+            
+            const container = bar.parentElement.parentElement;
+            if(val < 20) {
+                container.classList.add('warning-stat');
+                isCritical = true;
+            } else {
+                container.classList.remove('warning-stat');
+            }
+        });
+        
+        const app = document.getElementById('app');
+        if (isCritical || player.blizzard.active) app.classList.add('critical-bg');
+        else app.classList.remove('critical-bg');
+        
+        if (player.blizzard.active) {
+            document.body.classList.add('blizzard-mode');
+            document.getElementById('blizzard-alert').style.display = 'inline';
+        } else {
+            document.body.classList.remove('blizzard-mode');
+            document.getElementById('blizzard-alert').style.display = 'none';
+        }
+
+        const deathRiskEl = document.getElementById('death-risk');
+        if (player.deathRisk > 0) {
+            deathRiskEl.style.display = 'inline';
+            deathRiskEl.innerText = `☠ 死亡率: ${player.deathRisk}%`;
+        } else {
+            deathRiskEl.style.display = 'none';
+        }
+
+        document.getElementById('val-temp').innerText = formatTemp(player.stats.temp);
+        
+        const timeStr = player.isNight ? "☾ 深夜" : "☀ 白晝";
+        document.getElementById('txt-time').innerText = `${timeStr} (Step: ${player.stepInDay}/${DAY_STEPS})`;
+        
+        let rawDistance = 0;
+        if (!player.isDescending) {
+            let remainder = player.progress % 20;
+            rawDistance = (remainder === 0 && player.progress > 0) ? 0 : (20 - remainder);
+        } else {
+            rawDistance = player.progress % 20;
+        }
+        let percentRemaining = (rawDistance / 20) * 100;
+        percentRemaining = Math.max(0, Math.min(100, percentRemaining));
+        document.getElementById('val-dist-camp').innerText = percentRemaining.toFixed(1) + '%';
+
+        // Detailed Location Mapping
+        document.getElementById('txt-location').innerText = getDetailedLocationName(player.progress);
+        
+        // Background Update
+        setBg(player.progress);
+    }
+
+    function log(msg, type) {
+        const div = document.createElement('div');
+        div.className = `log-entry ${type||''}`;
+        // 將 innerText 改為 innerHTML，這樣瀏覽器才會執行你的顏色標籤
+        div.innerHTML = msg; 
+        const view = document.getElementById('main-view');
+        view.appendChild(div);
+        view.scrollTop = view.scrollHeight;
+    }
+    /* --- SUMMIT PUSH EVENT --- */
+function triggerSummitPushEvent() {
+    let html = `
+        <div style="margin-bottom:15px;">你已進入死亡地帶 (8000m+)。空氣中的氧氣含量只有海平面的三分之一。</div>
+        <p>你的嚮導嚴肅地看著你：「從這裡開始，每一步都在消耗生命。你確定要繼續嗎?」</p>
+    `;
+    
+    let opts = [];
+    
+    // 選項1：使用氧氣瓶
+    if (player.inventory['oxygen'] && player.inventory['oxygen'] > 0) {
+        opts.push({
+            txt: `<span style="color:#4caf50; font-weight:bold;">使用氧氣瓶繼續攻頂 (剩餘: ${player.inventory['oxygen']})</span>`,
+            act: () => {
+                // [新增] 扣除氧氣瓶邏輯
+                if (player.inventory['oxygen'] > 0) {
+                    player.inventory['oxygen']--;
+                    if (player.inventory['oxygen'] === 0) delete player.inventory['oxygen'];
+                }
+                
+                // 解除缺氧狀態
+                player.hypoxiaMode = false;
+                document.getElementById('hypoxia-alert').style.display = 'none';
+                log("你戴上了氧氣面罩。雖然沉重，但能維持生命。", "event");
+                
+                // 更新介面 (確保背包顯示正確)
+                updateHUD(); 
+                closeModal();
+            }
+        });
+    }
+    
+    // 選項2：無氧攻頂
+    opts.push({
+        txt: `<span style="color:#d9534f; font-weight:bold;">拒絕氧氣，憑意志力攻頂 (極度危險)</span>`,
+        act: () => {
+            player.hypoxiaMode = true;
+            document.getElementById('hypoxia-alert').style.display = 'inline';
+            log("你選擇了無氧攻頂。這是對人類極限的挑戰。(所有消耗 x2)", "critical");
+            closeModal();
+        }
+    });
+    
+    // 選項3：放棄攻頂
+    opts.push({
+        txt: `<span style="color:#4a90e2;">放棄攻頂，開始撤退</span>`,
+        act: () => {
+            player.isDescending = true;
+            player.summitAborted = true;
+            updateToggleBtn();
+            log("你做出了艱難的決定 —— 活著回去比登頂更重要。", "descend");
+            closeModal();
+        }
+    });
+    
+    showModalHTML("死亡地帶", html + opts.map((opt, i) => 
+        `<button class="choice-btn" onclick="executeSummitChoice(${i})">${opt.txt}</button>`
+    ).join(''));
+    
+    // 存儲選項到全局變量以供按鈕調用
+    window.summitChoices = opts;
+}
+
+function executeSummitChoice(index) {
+    if (window.summitChoices && window.summitChoices[index]) {
+        window.summitChoices[index].act();
+    }
+}
+
+/* --- RISK EVENT SYSTEM --- */
+function checkRiskEvents() {
+    // 嚴重低溫風險
+    if (player.stats.temp < 20 && Math.random() < 0.15) {
+        log("你的手指已經失去知覺，凍傷風險極高!", "critical");
+        player.deathRisk += 10;
+    }
+    
+    // 嚴重飢餓風險
+    if (player.stats.hung < 15 && Math.random() < 0.12) {
+        log("極度飢餓讓你產生幻覺，腳步搖搖晃晃。", "critical");
+        player.stats.sani -= 15;
+    }
+    
+    // 精神崩潰風險
+    if (player.stats.sani < 25 && Math.random() < 0.18) {
+        log("你開始質疑自己為什麼要來這裡...", "sanity");
+        player.stats.stam -= 10;
+    }
+}
+
+/* --- [FIXED] HANDLE RANDOM EVENT LOGIC --- */
+    function handleRandomEvent() {
+        let pool = [];
+        let isMalignant = false;
+        let eventType = "event"; 
+
+        if (player.blizzard.active) {
+            pool = EVENTS_DB.blizzard ? EVENTS_DB.blizzard : [];
+            eventType = "blizzard";
+        } 
+        else if (player.stats.sani < 30 && Math.random() < 0.7) {
+            pool = EVENTS_DB.malignant ? EVENTS_DB.malignant : [];
+            isMalignant = true;
+            eventType = "malignant";
+        } 
+        else {
+            let zoneIdx = Math.floor(player.progress / 20);
+            if (zoneIdx > 4) zoneIdx = 4;
+            
+            if (EVENTS_DB.zones && EVENTS_DB.zones[zoneIdx]) {
+                // Filter out one-time events, but if pool is empty, maybe fallback?
+                // For now, keep story events one-time.
+                pool = EVENTS_DB.zones[zoneIdx].filter(e => !player.eventHistory.includes(e.id));
+            } else {
+                pool = [];
+            }
+            isMalignant = false;
+        }
+
+        // FAIL-SAFE: If pool is empty, trigger flavor text
+        if (!pool || pool.length === 0) {
+            generateFlavorText(); 
+            return;
+        }
+
+        const ev = pool[Math.floor(Math.random() * pool.length)];
+        // Only push to history if it's a zone event (story event)
+        // Blizzard and Malignant events can repeat (optional, but good for gameplay)
+        if (!player.blizzard.active && !isMalignant) {
+             player.eventHistory.push(ev.id);
+        }
+
+        const processedOpts = ev.opts.filter(o => !o.cond || o.cond(player)).map(o => ({
+            txt: o.txt,
+            act: () => {
+                const resultText = o.act(); 
+                log(`> 選擇：${o.txt}`, "normal");
+                
+                let finalLogType = isMalignant ? "malignant" : "event";
+                if(player.blizzard.active) finalLogType = "blizzard";
+                
+                log(resultText, finalLogType);
+                updateHUD();
+                checkDeath();
+            }
+        }));
+
+        showModal(ev.title, ev.text, processedOpts);
+    }
+
+    function generateFlavorText() {
+    const p = player.progress;
+    const isNight = player.isNight;
+    const isDescending = player.isDescending;
+    
+    let texts = [];
+    
+    // 下撤時的特殊文字
+    if (isDescending && p > 0) {
+        texts = [
+            "下山比上山更危險，每一步都要小心翼翼。",
+            "重力是你的朋友，也是你的敵人。",
+            "你的膝蓋開始抗議這漫長的下降。",
+            "回頭看，你剛才走過的路簡直不可思議。"
+        ];
+    }
+    // 夜晚的特殊文字
+    else if (isNight) {
+        texts = [
+            "頭燈的光束在黑暗中顯得如此孤獨。",
+            "夜晚的寒冷比白天更加刺骨。",
+            "星空美得令人窒息，但你沒時間欣賞。",
+            "黑暗中，你只能依靠腳下的感覺前進。"
+        ];
+    }
+    // 根據高度的風味文字
+    else if (p < 20) {
+        texts = [
+            "遠處冰塔崩塌的雷鳴聲讓人心悸。",
+            "你看見梯子底下深藍色的無底深淵。",
+            "冰爪抓在堅硬的藍冰上發出刺耳聲響。",
+            "一隻雪鴉在遠處盤旋，似乎在觀察你。",
+            "冰川深處傳來低沉的呻吟聲。"
+        ];
+    }
+    else if (p < 40) {
+        texts = [
+            "死一樣的寂靜，只能聽見心跳聲。",
+            "陽光反射強烈，感覺像是在微波爐裡。",
+            "前面的腳印被風吹得快消失了。",
+            "你的影子在雪地上拖得很長。",
+            "遠處的山峰在熱浪中扭曲變形。"
+        ];
+    }
+    else if (p < 60) {
+        texts = [
+            "洛子壁的冰壁陡峭得讓人絕望。",
+            "一顆小石頭從頭盔旁擦過。",
+            "下方的營地已經變成了小黑點。",
+            "你能看見遠處的卓奧友峰。",
+            "路繩在風中發出嗡嗡的振動聲。"
+        ];
+    }
+    else if (p < 80) {
+        texts = [
+            "風聲像噴氣機引擎一樣咆哮。",
+            "路邊有一個被遺棄的氧氣瓶，半埋在碎石中。",
+            "殘破的帳篷在風中瘋狂拍打。",
+            "黃帶岩層的岩石鬆動得令人不安。",
+            "每一次呼吸都像在吸砂紙。"
+        ];
+    }
+    else {
+        texts = [
+            "左邊是尼泊爾，右邊是西藏，兩邊都是萬丈深淵。",
+            "你看見了傳說中的「綠靴子」，他依然躺在那裡。",
+            "每一步都需要全部的意志力驅動。",
+            "天空呈現出深邃的紫黑色，你幾乎能看見星星。",
+            "希拉里台階上掛滿了彩色的路繩。",
+            "南峰的輪廓在你眼前越來越清晰。"
+        ];
+    }
+    
+    const msg = texts[Math.floor(Math.random() * texts.length)];
+    log(msg, "flavor");
+    updateHUD(); // 確保UI更新
+}
+
+function checkDeath() {
+        // 1. 計算有幾項數值歸零 (危急程度)
+        let criticalCount = 0;
+        if (player.stats.stam <= 0) criticalCount++;
+        if (player.stats.hung <= 0) criticalCount++;
+        if (player.stats.sani <= 0) criticalCount++;
+        if (player.stats.temp <= 0) criticalCount++;
+
+        // 判斷是否處於致命狀態
+        const isDeadly = criticalCount > 0;
+
+        if (isDeadly) {
+            // --- 幾何級數累加邏輯 ---
+            
+            // 如果當前死亡率是 0，先設為 1 作為起始基準
+            if (player.deathRisk === 0) player.deathRisk = 1;
+            
+            // 計算倍率：(歸零數量 + 1)
+            let multiplier = criticalCount + 1;
+            
+            // 執行乘法運算
+            player.deathRisk = player.deathRisk * multiplier;
+
+            // 設定上限 100%
+            if (player.deathRisk > 100) player.deathRisk = 100;
+
+            // 【關鍵修正】在此處立刻更新最大死亡率紀錄，確保死前那一刻的數值被記錄
+            if (player.deathRisk > player.maxDeathRisk) {
+                player.maxDeathRisk = player.deathRisk;
+            }
+
+            // 顯示警告日誌 (你指定的格式)
+            log(`⚠ 生命垂危！死亡率飆升至${player.deathRisk}%`, "critical");
+            
+            // 進行死亡判定
+            if (Math.random() * 100 < player.deathRisk) {
+                return endGame(false, "你的身體機能徹底崩潰了。");
+            }
+        } else {
+            // --- 恢復邏輯 ---
+            if (player.deathRisk > 0) {
+                // 若全部數值皆恢復，每回合 -10
+                player.deathRisk -= 10;
+                
+                // 確保不低於 0
+                if (player.deathRisk < 0) player.deathRisk = 0;
+                
+                // 顯示恢復訊息
+                if (player.deathRisk > 0) {
+                     log(`身體機能正在緩慢恢復... (剩餘死亡風險: ${player.deathRisk}%)`, "event");
+                } else {
+                     log("你的身體狀況已脫離危險。", "event");
+                }
+            }
+        }
+        return false;
+    }
+function endGame(victory, cause) {
+        let outcomeTitle = "";
+        let outcomeDesc = "";
+        let outcomeClass = "";
+
+        if (victory) {
+            if (player.hasSummited) {
+                if (player.summitedWithoutO2) {
+                    outcomeTitle = "無氧大師 (No-O2 Master)";
+                    outcomeDesc = "你拒絕了氧氣瓶的誘惑，僅憑自身的肺活量與鋼鐵意志征服了8848米。只有不到2%的登頂者在這樣的極限中挑戰成功。";
+                    outcomeClass = "text-win";
+                } else {
+                    outcomeTitle = "傳奇誕生 (Legend)";
+                    outcomeDesc = "你站在世界之巔，並活著回來訴說這一切。但是切記，不是你征服了山，而是山放過了你。";
+                    outcomeClass = "text-win";
+                }
+            } else {
+                outcomeTitle = "智者生存 (Survivor)";
+                outcomeDesc = "你做出了最艱難的決定——在頂峰前轉身。山永遠都在，而你活了下來。這是勇氣的另一種形式。";
+                outcomeClass = "text-retreat";
+            }
+        } else {
+            if (player.hasSummited) {
+                outcomeTitle = "雪山悲歌 (Tragedy)";
+                outcomeDesc = "你成功觸摸到了天空，卻永遠留在了歸途。榮耀與遺憾並存。";
+                outcomeClass = "text-loss";
+            }
+            else if (player.hypoxiaMode && !player.hasSummited) {
+                outcomeTitle = "雪山莽夫 (Reckless Fool)";
+                outcomeDesc = "你高估了自己的生理極限，拒絕了氧氣瓶的救贖。在8000米以上的死亡地帶，你的肺泡乾枯，意識在缺氧中消散。勇氣與愚蠢往往只有一線之隔。";
+                outcomeClass = "text-loss";
+            }
+            else if (player.isDescending && !player.hasSummited) {
+                outcomeTitle = "無盡絕望 (Despair)";
+                outcomeDesc = "你選擇了放棄，但死神依然沒有放過你，你在絕望中走向了終結";
+                outcomeClass = "text-loss";
+            } else {
+                outcomeTitle = "隕落 (Fallen)";
+                outcomeDesc = "你在攀登途中倒下。你的身體將成為後來者的路標，永不腐爛。(" + cause + ")";
+                outcomeClass = "text-loss";
+            }
+        }
+
+        let maxAlt = Math.floor(5300 + (player.maxProgress * 35));
+        if (player.maxProgress >= 100) maxAlt = 8848; 
+        
+        let bestLoc = getDetailedLocationName(player.maxProgress);
+        
+        // --- 【修改點】 取得難度名稱與顏色 ---
+        const diffConfig = DIFFICULTIES[currentDiff];
+        const diffName = diffConfig ? diffConfig.desc : "未知";
+        const diffColor = diffConfig ? diffConfig.color : "#ccc"; // 預設灰色
+
+        const mainViewLog = document.getElementById('main-view').innerHTML;
+        let gearList = player.gear.map(id => ITEMS.find(i=>i.id===id).name).join(', ') || "無";
+        let invList = Object.entries(player.inventory).map(([id, count]) => {
+            const name = ITEMS.find(i=>i.id===id).name;
+            if(ITEMS.find(i=>i.id===id).type === 'tool') return name;
+            return `${name} x${count}`;
+        }).join(', ') || "無";
+
+        let html = `
+            <div class="result-title ${outcomeClass}">${outcomeTitle}</div>
+            <div style="margin-bottom:20px; line-height:1.5;">${outcomeDesc}</div>
+            
+            <div class="summary-box">
+                <div style="color:var(--accent-blue); border-bottom:1px solid #444; margin-bottom:5px;">攀登紀錄</div>
+                <div class="summary-stat-grid">
+                    <div>挑戰難度: <span class="stat-val" style="color:${diffColor}">${diffName}</span></div>
+                    <div>最高到達: <span class="stat-val">${bestLoc}</span></div>
+                    <div>最高海拔: <span class="stat-val">${maxAlt}m</span></div>
+                    <div>存活天數: <span class="stat-val">Day ${player.dayCount}</span></div>
+                    <div>總步數: <span class="stat-val">${player.totalSteps}</span></div>
+                    <div>最大死亡率: <span class="text-loss">${player.maxDeathRisk}%</span></div>
+                </div>
+            </div>
+
+            <div class="summary-box">
+                <div style="color:#aaa; border-bottom:1px solid #444; margin-bottom:5px;">最終狀態</div>
+                <div class="summary-stat-grid">
+                    <div>體力: <span class="stat-val ${getStatColor(player.stats.stam)}">${Math.round(player.stats.stam)}</span> <span class="stat-min ${getStatColor(player.minStats.stam)}">(最小值: ${Math.round(player.minStats.stam)})</span></div>
+                    <div>理智: <span class="stat-val ${getStatColor(player.stats.sani)}">${Math.round(player.stats.sani)}</span> <span class="stat-min ${getStatColor(player.minStats.sani)}">(最小值: ${Math.round(player.minStats.sani)})</span></div>
+                    <div>飢餓: <span class="stat-val ${getStatColor(player.stats.hung)}">${Math.round(player.stats.hung)}</span> <span class="stat-min ${getStatColor(player.minStats.hung)}">(最小值: ${Math.round(player.minStats.hung)})</span></div>
+                    <div>體溫: <span class="stat-val ${getStatColor(player.stats.temp, 'temp')}">${formatTemp(player.stats.temp)}</span> <span class="stat-min ${getStatColor(player.minStats.temp, 'temp')}">(最小值: ${formatTemp(player.minStats.temp)})</span></div>
+                </div>
+            </div>
+
+            <div class="summary-box">
+                <div style="color:#aaa; border-bottom:1px solid #444; margin-bottom:5px;">剩餘物資</div>
+                <div style="font-size:0.85em;">
+                    <div style="margin-bottom:3px;">裝備: ${gearList}</div>
+                    <div>背包: ${invList}</div>
+                </div>
+            </div>
+
+            <div style="color:#aaa; font-size:0.9em; margin-bottom:5px;">完整日誌回顧:</div>
+            <div class="summary-log-container">
+                ${mainViewLog}
+            </div>
+        `;
+
+        showModalHTML("探險報告", html + `<button class="choice-btn" onclick="location.reload()">重新開始旅程</button>`);
+        return true;
+    }    
+    initShop();
+</script>
+
+</body>
+</html>
