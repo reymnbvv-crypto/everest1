@@ -242,7 +242,7 @@
             
             <h3>🌟 版本核心特色</h3>
             <ul>
-                <li><strong>硬核生存機制</strong>：同時監控體力、體溫、飢餓與理智。</li>
+                <li><strong>硬核生存機制</strong>：同時監控體力、體溫、飽食度與理智。</li>
                 <li><strong>沈浸式地圖</strong>：從「爆米花田」到「希拉里台階」，16個真實地標。</li>
                 <li><strong>動態天氣系統</strong>：暴風雪隨時降臨，視線受阻，體溫狂掉。</li>
                 <li><strong>深度裝備策略</strong>：雪鏟挖洞保命、能量飲料透支理智、35kg 負重極限。</li>
@@ -322,7 +322,7 @@
                     <div class="progress-track"><div id="bar-temp" class="progress-fill fill-temp" style="width:100%"></div></div>
                 </div>
                 <div>
-                    <div style="display:flex; justify-content:space-between;"><span>飢餓</span><span id="val-hung">100</span></div>
+                    <div style="display:flex; justify-content:space-between;"><span>飽食度</span><span id="val-hung">100</span></div>
                     <div class="progress-track"><div id="bar-hung" class="progress-fill fill-hunger" style="width:100%"></div></div>
                 </div>
                 <div>
@@ -408,10 +408,10 @@
         { id: 'poles', name: '碳纖維登山杖', price: 800, weight: 0.5, type: 'gear', desc: '節省腿力。在 C3 之前，攀登體力消耗減少 2 點。' },
         { id: 'stove', name: '便攜爐具', price: 500, weight: 0.8, type: 'gear', desc: '在營地配合燃料可回滿體溫。' },
         { id: 'oxygen', name: '氧氣瓶', price: 1000, weight: 6.0, type: 'use', desc: '6.0kg重物。攻頂必需品。', effect: {stam:40, sani:20} },
-        { id: 'food', name: '高熱量口糧', price: 100, weight: 0.5, type: 'use', desc: '回45飢餓值', effect: {hung:45} },
+        { id: 'food', name: '高熱量口糧', price: 100, weight: 0.5, type: 'use', desc: '回45飽食度', effect: {hung:45} },
         { id: 'fuel', name: '固體燃料', price: 100, weight: 0.4, type: 'use', desc: '回40體溫 (營地需要配合爐具)', effect: {temp:40} },
-        { id: 'dex', name: '腎上腺素', price: 800, weight: 0.1, type: 'use', desc: '燃燒生命(飢餓)換取爆發，理智+40', effect: {adrenaline:true} },
-        { id: 'energy_drink', name: '能量飲料', price: 150, weight: 0.5, type: 'use', desc: '回40體力，但副作用傷身(理智-30)。', effect: {hung: 10, stam: 40, sani: -30} },
+        { id: 'dex', name: '腎上腺素', price: 800, weight: 0.1, type: 'use', desc: '燃燒生命(飽食度)換取爆發，理智+40', effect: {adrenaline:true} },
+        { id: 'energy_drink', name: '能量飲料', price: 150, weight: 0.5, type: 'use', desc: '回70體力，但副作用傷身(理智-30)。', effect: {hung: 10, stam: 70, sani: -30} },
         { id: 'whisky', name: '威士忌烈酒', price: 150, weight: 0.4, type: 'use', desc: '暖身烈酒。能增加體溫以及理智值，但醉酒會減少體力。', effect: {temp:30, sani:30, stam:-15} },
     ];
 
@@ -473,7 +473,7 @@
             { id: "z3_crampon", title: "冰爪鬆動", text: "在70度的藍冰坡上,你的右腳冰爪綁帶鬆了,隨時可能脫落。", opts: [{txt:"冒險重新綁", act:()=>{ if(Math.random()>0.6) { player.stats.stam-=10; return "你在極度危險的姿勢下綁好了它。(體力-10)"; } else { player.stats.stam-=40; player.deathRisk+=15; return "你手滑了!滑墜了幾米才被安全繩拉住,魂飛魄散。(體力-40 / 死亡率+15%)"; }}}, {txt:"勉強支撐", act:()=>{player.stats.stam-=20; return "你更多地依靠手臂力量拉上升器,雙臂酸痛無比。(體力-20)";}}] }
         ],
 [ 
-            { id: "z4_zip", title: "凍結的拉鍊", text: "你想拿水喝,但連體衣的拉鍊完全凍死,拉不開。", opts:[{txt:"用蠻力拉", act:()=>{player.stats.temp-=10; return "拉鍊壞了,冷風直灌。(體溫持續下降)";}}, {txt:"放棄喝水", act:()=>{player.stats.hung-=20; player.stats.sani-=20; return "口渴難耐。(飢餓-20 / 理智-20)";}}] }, 
+            { id: "z4_zip", title: "凍結的拉鍊", text: "你想拿水喝,但連體衣的拉鍊完全凍死,拉不開。", opts:[{txt:"用蠻力拉", act:()=>{player.stats.temp-=10; return "拉鍊壞了,冷風直灌。(體溫持續下降)";}}, {txt:"放棄喝水", act:()=>{player.stats.hung-=20; player.stats.sani-=20; return "口渴難耐。(飽食度-20 / 理智-20)";}}] }, 
             { id: "z4_oldoxy", title: "遺棄的氧氣瓶", text: "雪地裡埋著半瓶氧氣,是去年隊伍留下的。", opts:[{txt:"更換使用", act:()=>{ if(Math.random()>0.7){ player.stats.stam+=30; player.stats.sani+=15; return "運氣好!裡面還有氧氣。(體力+30 / 理智+15)";} else { return "是壞的,什麼都沒有發生。(無效果)";} }}, {txt:"不冒險", act:()=>{return "安全但遺憾。";}}] }, 
             { id: "z4_dying", title: "垂死求救", text: "路邊坐著一個瀕死的登山者:「氧氣...給我一點氧氣...」", opts: [{ txt: "分給他氧氣", cond: (p)=>p.inventory['oxygen']>0, act: () => { player.inventory['oxygen']--; player.stats.sani += 40; return "你給了他氣瓶。你守住了人性。(失去氧氣 / 理智+40)"; }}, { txt: "無視", act: () => { player.stats.sani -= 40; return "8000米以上無道德。(理智-40)"; }}, { txt: "拿走物資", cond: (p)=>p.stats.sani<30, act: () => { player.inventory['food']=(player.inventory['food']||0)+1; player.stats.sani -= 100; return "你拿走了他的口糧。(獲得口糧 / 理智-100)"; }}] }, 
             { id: "z4_sitter", title: "坐著的人", text: "路邊坐著一個人,兜帽蓋住了臉,一動不動。", opts: [{txt:"上前拍拍他", act:()=>{player.stats.sani-=25; return "他是硬的。你觸摸到了死亡。(理智-25)";}}, {txt:"繞道而行", act:()=>{player.stats.stam-=5; return "你假裝他只是在休息,低著頭快速通過。(體力-5)";}}] }, 
@@ -935,8 +935,8 @@
             player.totalSteps++;
             checkTimePassage(); // 檢查是否日夜交替，這會影響下方的 env 數值
 
-            // 3. 恢復體力與消耗飢餓 (平均分攤到每一步)
-            // 總共 +30 體力, -20 飢餓
+            // 3. 恢復體力與消耗飽食度 (平均分攤到每一步)
+            // 總共 +30 體力, -20 飽食度
             player.stats.stam += 1.5;   
             player.stats.hung -= 1; 
             if (player.stats.stam > 100) player.stats.stam = 100;
@@ -986,7 +986,7 @@
         closeModal();
         
         // 總結報告
-        log(`雪洞庇護結束。雖然體溫流失了，但你撐過了這段時間。(體力+30 / 飢餓-20)`, "event");
+        log(`雪洞庇護結束。雖然體溫流失了，但你撐過了這段時間。(體力+30 / 飽食度-20)`, "event");
     }
     function actionRest() {
         if(checkDeath()) return;
@@ -1111,7 +1111,7 @@
         <p>環境惡劣，你的資源決定了今晚能恢復多少。</p>
         
         <label class="camp-option">
-            <span>食用口糧 (庫存: ${foodCount}) <br><span style="font-size:0.8em; color:#aaa">回復飢餓</span></span>
+            <span>食用口糧 (庫存: ${foodCount}) <br><span style="font-size:0.8em; color:#aaa">回復飽食度</span></span>
             <input type="checkbox" id="chk-food" ${hasFood ? 'checked' : 'disabled'}>
         </label>
 
@@ -1251,12 +1251,12 @@
         if(id === 'dex') {
             const consumedHunger = player.stats.hung * 0.8;
             player.stats.hung -= consumedHunger;
-            const stamGain = consumedHunger * 0.6;
-            const tempGain = consumedHunger * 0.4;
+            const stamGain = consumedHunger * 1.0;
+            const tempGain = consumedHunger * 0.5;
             player.stats.stam += stamGain;
             player.stats.temp += tempGain;
             player.stats.sani += 40; 
-            log(`注射腎上腺素！燃燒了 ${Math.round(consumedHunger)} 點飢餓，換取體能爆發。`, "critical");
+            log(`注射腎上腺素！燃燒了 ${Math.round(consumedHunger)} 點飽食度，換取體能爆發。`, "critical");
         }
         else if(item.effect) {
             if(item.effect.stam) player.stats.stam += item.effect.stam;
@@ -1461,9 +1461,9 @@ function checkRiskEvents() {
         player.deathRisk += 10;
     }
     
-    // 嚴重飢餓風險
+    // 嚴重飽食度風險
     if (player.stats.hung < 15 && Math.random() < 0.12) {
-        log("極度飢餓讓你產生幻覺，腳步搖搖晃晃。", "critical");
+        log("極度飽食度讓你產生幻覺，腳步搖搖晃晃。", "critical");
         player.stats.sani -= 15;
     }
     
@@ -1751,7 +1751,7 @@ function endGame(victory, cause) {
                 <div class="summary-stat-grid">
                     <div>體力: <span class="stat-val ${getStatColor(player.stats.stam)}">${Math.round(player.stats.stam)}</span> <span class="stat-min ${getStatColor(player.minStats.stam)}">(最小值: ${Math.round(player.minStats.stam)})</span></div>
                     <div>理智: <span class="stat-val ${getStatColor(player.stats.sani)}">${Math.round(player.stats.sani)}</span> <span class="stat-min ${getStatColor(player.minStats.sani)}">(最小值: ${Math.round(player.minStats.sani)})</span></div>
-                    <div>飢餓: <span class="stat-val ${getStatColor(player.stats.hung)}">${Math.round(player.stats.hung)}</span> <span class="stat-min ${getStatColor(player.minStats.hung)}">(最小值: ${Math.round(player.minStats.hung)})</span></div>
+                    <div>飽食度: <span class="stat-val ${getStatColor(player.stats.hung)}">${Math.round(player.stats.hung)}</span> <span class="stat-min ${getStatColor(player.minStats.hung)}">(最小值: ${Math.round(player.minStats.hung)})</span></div>
                     <div>體溫: <span class="stat-val ${getStatColor(player.stats.temp, 'temp')}">${formatTemp(player.stats.temp)}</span> <span class="stat-min ${getStatColor(player.minStats.temp, 'temp')}">(最小值: ${formatTemp(player.minStats.temp)})</span></div>
                 </div>
             </div>
